@@ -14,7 +14,7 @@
 
 use std::collections::HashSet;
 
-use super::cost::{CarKinematicModel, KinematicConfig};
+use super::cost::{CarKinematicModel, KinematicConfig, ModeFlags};
 use super::nogo::{
     check_polyline_against_nogos, check_segment_against_nogos, clean_nogos, InternalNogo,
     NogoArea, NogoCheckResult,
@@ -1202,20 +1202,13 @@ impl AStarRouter {
                 });
             }
 
-            let valid_for_foot = profile.get_global_var("validForFoot", 0.0) != 0.0;
-            let valid_for_cars = profile.get_global_var(
-                "validForCars",
-                if profile.name.starts_with("car") { 1.0 } else { 0.0 },
-            ) != 0.0;
-            let valid_for_bikes = profile.get_global_var(
-                "validForBikes",
-                if !valid_for_foot && !valid_for_cars { 1.0 } else { 0.0 },
-            ) != 0.0;
-            let transport_mode = TransportMode::from_flags(valid_for_cars, valid_for_bikes);
+            let modes = ModeFlags::from_profile(profile);
+            let transport_mode = TransportMode::from_flags(modes.car, modes.bike);
             let catching_range =
                 profile.get_global_var("turnInstructionCatchingRange", 40.0) as f64;
-            let explicit_roundabouts =
-                profile.get_global_var("turnInstructionRoundabouts", 1.0) != 0.0;
+            let explicit_roundabouts = profile
+                .get_global_var("turnInstructionRoundabouts", if modes.foot { 0.0 } else { 1.0 })
+                != 0.0;
 
             let vproc = VoiceHintProcessor::new(explicit_roundabouts, transport_mode);
             let raw_hints = vproc.process(inputs);
@@ -1297,29 +1290,13 @@ impl<'a, 'g, 'r> SearchPassContext<'a, 'g, 'r> {
         let target_id2 = params.target_mwp.node2.node_id();
 
         let crossing_cfg = CrossingConfig::from_profile(profile);
-        let valid_for_foot = profile.get_global_var("validForFoot", 0.0) != 0.0;
-        let valid_for_cars = profile.get_global_var(
-            "validForCars",
-            if profile.name.starts_with("car") {
-                1.0
-            } else {
-                0.0
-            },
-        ) != 0.0;
-        let valid_for_bikes = profile.get_global_var(
-            "validForBikes",
-            if !valid_for_foot && !valid_for_cars {
-                1.0
-            } else {
-                0.0
-            },
-        ) != 0.0;
+        let modes = ModeFlags::from_profile(profile);
         let consider_tr = profile.get_global_var(
             "considerTurnRestrictions",
-            if valid_for_foot { 0.0 } else { 1.0 },
+            if modes.foot { 0.0 } else { 1.0 },
         ) != 0.0;
-        let is_car_mode = valid_for_cars;
-        let is_bike_mode = valid_for_bikes || valid_for_foot;
+        let is_car_mode = modes.car;
+        let is_bike_mode = modes.bike || modes.foot;
 
         let mut protected_nodes: Vec<u64> = Vec::with_capacity(16);
         for mut id in [target_id1, target_id2, start_id1, start_id2] {

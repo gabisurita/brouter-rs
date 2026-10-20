@@ -239,3 +239,32 @@ assign initialcost = 0
     ld[hw_idx] = residential_val;
     assert!(no_start_prof.check_start_way_decoded(&ld));
 }
+
+#[test]
+fn test_foreign_variable_resolution() {
+    let lookups =
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
+    let profile = |node_expr: &str| {
+        let src = format!(
+            "---context:global\nassign g = 1\n---context:way\nassign costfactor = 1\nassign w = 2\n---context:node\nassign initialcost = {node_expr}\n"
+        );
+        Profile::parse("foreign_test", &src, &lookups)
+    };
+
+    let ok = profile("way:w").expect("way:w should resolve");
+    let idx = ok.way_block.var_map["w"];
+    assert_eq!(ok.node_block.foreign_var_indices(), vec![idx]);
+
+    for (expr, msg) in [
+        ("way:typo", "unknown variable: way:typo"),
+        ("node:w", "unknown foreign context: node"),
+        ("way:g", "bad access to global variable: way:g"),
+    ] {
+        let err = profile(expr).expect_err(expr);
+        assert!(err.contains(msg), "{expr}: {err}");
+    }
+
+    let src = "---context:global\n---context:way\nassign costfactor = way:x\n---context:node\nassign initialcost = 0\n";
+    let err = Profile::parse("foreign_in_way", src, &lookups).expect_err("way context has no foreign context");
+    assert!(err.contains("unknown foreign context: way"), "{err}");
+}

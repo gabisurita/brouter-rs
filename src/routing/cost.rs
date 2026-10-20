@@ -39,19 +39,38 @@ impl Default for KinematicConfig {
     }
 }
 
+/// Transport mode flags read from a profile's global context.
+///
+/// Mirrors Java `RoutingContext.readGlobalConfig`: each flag defaults to false.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ModeFlags {
+    pub car: bool,
+    pub bike: bool,
+    pub foot: bool,
+}
+
+impl ModeFlags {
+    pub fn from_profile(profile: &Profile) -> Self {
+        Self {
+            car: profile.get_global_var("validForCars", 0.0) != 0.0,
+            bike: profile.get_global_var("validForBikes", 0.0) != 0.0,
+            foot: profile.get_global_var("validForFoot", 0.0) != 0.0,
+        }
+    }
+}
+
 impl KinematicConfig {
     pub fn from_profile(profile: &Profile) -> Self {
-        let valid_for_bikes = profile.get_global_var("validForBikes", 0.0) != 0.0;
-        let valid_for_foot = profile.get_global_var("validForFoot", 0.0) != 0.0;
-        let default_max_speed = if valid_for_foot { 6.0 } else { 45.0 };
+        let modes = ModeFlags::from_profile(profile);
+        let default_max_speed = if modes.foot { 6.0 } else { 45.0 };
         Self {
             total_mass: profile.get_global_var("totalMass", 90.0) as f64,
             max_speed: (profile.get_global_var("maxSpeed", default_max_speed) as f64) / 3.6,
             s_c_x: profile.get_global_var("S_C_x", 0.5 * 0.45) as f64,
             c_r: profile.get_global_var("C_r", 0.01) as f64,
             biker_power: profile.get_global_var("bikerPower", 100.0) as f64,
-            is_bike_mode: valid_for_bikes,
-            is_foot_mode: valid_for_foot,
+            is_bike_mode: modes.bike,
+            is_foot_mode: modes.foot,
         }
     }
 

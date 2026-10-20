@@ -8,7 +8,7 @@
 //! Path state tracker with 3-state elevation hysteresis buffers, slope cutoffs,
 //! turn angle penalties, and kinematic travel time integration.
 
-use super::cost::{CarKinematicModel, KinematicConfig};
+use super::cost::{CarKinematicModel, KinematicConfig, ModeFlags};
 use super::state::CandidateState;
 use crate::dsl::evaluator::WayCostResult;
 use crate::types::{Cost, Distance, Joules, Seconds};
@@ -85,7 +85,7 @@ pub struct CrossingConfig {
 
 impl CrossingConfig {
     pub fn from_profile(profile: &crate::dsl::parser::Profile) -> Self {
-        let valid_for_bikes = profile.get_global_var("validForBikes", 0.0) != 0.0;
+        let valid_for_bikes = ModeFlags::from_profile(profile).bike;
         let consider_crossing =
             valid_for_bikes && (profile.get_global_var("consider_crossing", 0.0) != 0.0);
         let crossing_prio_h = profile.get_global_var("crossing_Prio_H", 0.0) as i32;

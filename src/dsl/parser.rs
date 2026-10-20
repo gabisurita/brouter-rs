@@ -250,7 +250,7 @@ impl Profile {
         }
 
         // 1. Compile and evaluate global section
-        let (global_block, global_values) =
+        let (mut global_block, global_values) =
             compile_global_block(&global_tokens, &lookups.way, params)?;
 
         // Parse noStartWays from comments if check_start_way is defined in global context
@@ -261,7 +261,7 @@ impl Profile {
         };
 
         // 2. Compile way section with global variables inherited as read-only
-        let way_block = compile_context_block(
+        let mut way_block = compile_context_block(
             "way",
             &way_tokens,
             &lookups.way,
@@ -280,8 +280,14 @@ impl Profile {
             &global_values,
         )?;
 
+        for stmt in &mut global_block.statements {
+            resolve_foreign_vars(stmt, None)?;
+        }
+        for stmt in &mut way_block.statements {
+            resolve_foreign_vars(stmt, None)?;
+        }
         for stmt in &mut node_block.statements {
-            resolve_foreign_vars(stmt, &way_block.var_map);
+            resolve_foreign_vars(stmt, Some(&way_block))?;
         }
 
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -340,38 +346,51 @@ fn parse_no_start_ways(content: &str, way_lookups: &ContextLookups) -> Vec<(usiz
     no_start_ways
 }
 
-fn resolve_foreign_vars(expr: &mut BExpr, way_var_map: &HashMap<String, usize>) {
+/// Resolves `way:<var>` references to way variable indices.
+///
+/// `way_block` is the foreign context: `Some` for the node context, `None` for
+/// contexts without one. Mirrors Java `BExpressionContext.getForeignVariableIdx`:
+/// an unknown context, an unknown variable, or a read of an inherited global
+/// variable is an error.
+fn resolve_foreign_vars(expr: &mut BExpr, way_block: Option<&ContextBlock>) -> Result<(), String> {
     match expr {
         BExpr::ForeignVariable {
             context,
             var_name,
             var_idx,
         } => {
-            if context == "way" {
-                if let Some(&idx) = way_var_map.get(var_name) {
-                    *var_idx = idx;
-                }
+            let Some(way_block) = way_block.filter(|_| context == "way") else {
+                return Err(format!("unknown foreign context: {context}"));
+            };
+            let idx = *way_block
+                .var_map
+                .get(var_name)
+                .ok_or_else(|| format!("unknown variable: {context}:{var_name}"))?;
+            if idx < way_block.min_write_idx {
+                return Err(format!("bad access to global variable: {context}:{var_name}"));
             }
+            *var_idx = idx;
         }
-        BExpr::Not(inner) => resolve_foreign_vars(inner, way_var_map),
+        BExpr::Not(inner) => resolve_foreign_vars(inner, way_block)?,
         BExpr::Binary { left, right, .. } => {
-            resolve_foreign_vars(left, way_var_map);
-            resolve_foreign_vars(right, way_var_map);
+            resolve_foreign_vars(left, way_block)?;
+            resolve_foreign_vars(right, way_block)?;
         }
         BExpr::Switch {
             cond,
             then_expr,
             else_expr,
         } => {
-            resolve_foreign_vars(cond, way_var_map);
-            resolve_foreign_vars(then_expr, way_var_map);
-            resolve_foreign_vars(else_expr, way_var_map);
+            resolve_foreign_vars(cond, way_block)?;
+            resolve_foreign_vars(then_expr, way_block)?;
+            resolve_foreign_vars(else_expr, way_block)?;
         }
         BExpr::Assign { expr, .. } => {
-            resolve_foreign_vars(expr, way_var_map);
+            resolve_foreign_vars(expr, way_block)?;
         }
         _ => {}
     }
+    Ok(())
 }
 
 fn compile_global_block(
@@ -386,6 +405,9 @@ fn compile_global_block(
     let mut protected_consts: Vec<Option<f32>> = Vec::new();
 
     if let Some(kv) = params {
+        // Sort so variable indices do not depend on HashMap iteration order.
+        let mut kv: Vec<_> = kv.iter().collect();
+        kv.sort_unstable_by_key(|&(k, _)| k);
         for (key, value) in kv {
             let val = match value.trim() {
                 "true" => 1.0,
