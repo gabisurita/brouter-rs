@@ -1,0 +1,577 @@
+#  "racebike-verylowtraffic.brf" -- Version 30.07.2026    -- (Support the new tag "shoulder" & "estimated_crossing_class")
+#
+#  The basic version of this profile for "racebike" is "very low traffic",  intended for cyclists who ride alone in the middle of the week (where high car / truck traffic is expected)
+#   -but, cyclists biking in a group or at the weekend can change the routing by using the option "consider_traffic" as follow:
+#
+#
+#  setting of the option "consider_traffic"     | route is calculated with preference...
+# --------------------------------------------------------------------------------------------------------------
+#  as cyclist alone in the week (default)       | very low traffic (using all highway-types allowed for bikers)
+#  as cyclist alone at the weekend              | low traffic      (more tertiary /secondary / primary as above)
+#  with a group of cyclist                      | medium traffic  (more tertiary /secondary / primary as above, less residential, footway etc..)
+#  with a group of cyclist at the weekend       | high traffic is accepted (more tertiary /secondary / primary as above, less residential, footway etc..)
+#  do not consider traffic                      | also very high traffic is accepted (more tertiary /secondary / primary as above, less residential, footway etc..)
+#
+#
+
+---context:global   # following code refers to global config
+assign processUnusedTags false  # set to true if you want to display all tags in the "data"
+
+# to generate turn instructions, adapt the mode by need
+assign turnInstructionMode          = 1     # %turnInstructionMode% | Mode for the generated turn instructions | [0=none, 1=auto-choose, 2=locus-style, 3=osmand-style, 4=comment-style, 5=gpsies-style, 6=orux-style, 7=locus-old-style]
+
+# Note: the 4 following switches (consider _...) can be used to consider the traffic and environment in order to favor a route with the selected characteristic
+#
+#  - Max 2 parameters should be selected at the same time
+#  - Avoid selecting forest and river at the same time
+#
+assign   consider_elevation   = true   # %consider_elevation% | set true to favor a route with few elevation meters | boolean
+
+assign   consider_traffic     =  1        #  %consider_traffic% | how do you plan to drive the tour? |  [1=as cyclist alone in the week, 0.5=as cyclist alone at weekend, 0.3 =with a group of cyclists, 0.1=with a group of cyclists at week-end, 0.0=do not consider traffic]
+# usage: try to avoid traffic
+#   traffic estimation is only available for primay, secondary and tertiary highways).
+
+assign   consider_crossing     =  true        # %consider_crossing% | set to true to add penalty by unprotected intersections | boolean
+# usage example1: coming from a track/residential/cycleway and crossing a primary/highway with high traffic
+#       example2: on a primary or secondary you can add a penalty for a "left" trun!
+# how to configure: see the variables below: "cost_ToLeft_from_H_classx", "comming_from_lowprio" and "crossing_penalty"
+
+#
+assign   consider_noise       = false   # %consider_noise% | set to true to favor a low-noise route | boolean
+#   usage: try to find a route without noise
+#   the pseudo-tag "estimated_noise_class" can be now used for this (noise coming from motorway, primary, sencondary, tertiary and internatinal airports)
+
+assign   consider_river       = false   # %consider_river% | set to true to favor a route along rivers or sees | boolean
+# usage: try to find a route along "water"
+# the pseudo-tag "estimated_river_class" can be now used for this (considered are the "water" surfaces -exception wastewater!- and the river,canal)
+
+assign   consider_forest      = false   # %consider_forest% | set to true to favor a route in forest or parks | boolean
+# usage: try to find a route within a forest (or green area)
+# the pseudo-tag "estimated_forest_class" can be now used for this (considered are 'forest','allotments','flowerbed','orchard','vineyard','recreation_ground','village_green', 'garden','park', 'nature_reserve')
+
+assign   consider_town        = false   # %consider_town% | set to true to bypass cities / big towns as far as possible | boolean
+# usage: try to find a route which bypass big towns and cities
+# the pseudo-tag "estimated_town_class" can be now used for this (considered are towns/cities with a population > 50.000)
+# population   class
+# < 50.000    no tag
+# < 80.000    1
+# < 150.000   2
+# < 400.000   3
+# < 1.000.000 4
+# < 2.000.000 5
+# > 2.000.000 6
+#  ways having a river or forest tag > '1' are not tagged, this enabling to cross a big town allong a river or through parks/forest
+
+assign adj_traffic multiply 0.5  sub 1 consider_traffic # to modify some costs
+assign adj_param switch or consider_forest consider_river 2.9  1   #  internal use
+
+
+assign   avoid_path           = false   # %avoid_path% | set to true to avoid pathes | boolean
+
+assign   cycleway_lane_penalty = 0      # 0 => when lane, no cost for traffic or max speed, 1 => same cost as on the highway itself: example 0.3
+
+assign turnInstructionCatchingRange = 6 # 2 turn instructions are generated only when distance > 8 m
+assign turnInstructionRoundabouts = true # roundabout, no "take exit N" (as "N" may be confusing compared to car)
+assign considerTurnRestrictions = true   # turn restrictions are considered
+
+assign   validForBikes        1
+
+# the elevation parameters
+
+assign downhillcost  multiply adj_param 60
+assign downhillcutoff switch consider_elevation 1.5 15
+assign uphillcost multiply adj_param 100
+assign uphillcutoff switch consider_elevation 1.5 15
+
+# extention...(new) 
+# additional turn costs when "estimated_crossing_class" exists on the node at the junction between the old and the new HW
+# and "consider_crossing" is true!
+# and when turning LEFT from a highprio HW (Primary/secondary) into a lowprio HW (track, cycleway...)
+
+assign crossing_Prio_H = 22  # min priorityclassifier to consider the HW as "Highprio" HW
+assign crossing_Prio_L = 21  # max priorityclassifier to consider the HW as "Lowprio" HW
+
+# now define the turn costs depending on the estimated_crossing_class of the junction
+# By "right-hand traffic", when turning left from Highprio to Lowprio
+assign cost_ToLeft_from_H_class1 82 
+assign cost_ToLeft_from_H_class2 112
+assign cost_ToLeft_from_H_class3 212
+assign cost_ToLeft_from_H_class4 312
+assign cost_ToLeft_from_H_class5 512
+assign cost_ToLeft_from_H_class6 712
+
+# Note: by "left-hand traffic" replace "cost_ToLeft_from_H_classrN" with"cost_ToRight_from_H_classN" 
+
+---context:way   # following code refers to way-tags
+
+# variable used to control the "penalty" by crossing: is a node with an "estimated_crossing_class" is found, penalty is only set when coming from one of the highways defined there into a primary or secondary!  
+assign coming_from_lowprio switch highway=track|cycleway|footway|path|residential|service|unclassified true false
+
+# when "cycleway" only on 1 side of the road, use it only if it is on the right side in the direction of travel!
+assign cycleway_right if reversedirection=yes
+                              then if cycleway:left=track|lane|shared_lane then 1 else 0
+                      else if cycleway:right=track|lane|shared_lane then 1 else 0
+  
+
+assign shoulder_right if reversedirection=yes
+                              then if shoulder=left then 1 else 0
+                      else if or shoulder:right=yes  shoulder=right then 1 else 0
+
+assign shoulder_y switch shoulder=yes|both 1 0
+
+
+# assign any_cycleway  or cycleway=track|lane|shared_lane|shared or bicycle_road=yes or cycleway_right not cycleway:surface=
+# NEW 2025: consider shoulder as cycleway!
+assign any_cycleway or shoulder_right or shoulder_y or cycleway=track|lane|shared_lane|shared|shoulder or cycleway:both=track|lane|shared_lane|shared|shoulder or cycleway:both:lane=advisory|exclusive  or bicycle_road=yes or cycleway_right not cycleway:surface=
+
+
+# in relation with "route=bicycle" ?
+assign any_cycleroute or route_bicycle_icn=yes or route_bicycle_ncn=yes or route_bicycle_rcn=yes route_bicycle_lcn=yes
+
+assign nodeaccessgranted or any_cycleroute lcn=yes
+
+assign ispaved or surface=paved surface=asphalt
+assign isunpaved   surface=unpaved|gravel|dirt|earth|ground|sand
+
+assign isfine_gravel  surface=fine_gravel|cobblestone|compacted|paving_stones
+assign isconcrete surface=concrete
+
+assign turncost = if junction=roundabout then 0
+                  else multiply adj_param 50
+#
+assign initialclassifier =
+     switch route=ferry 2  1
+assign initialcost =
+     switch route=ferry multiply adj_param 4999  0
+#
+# implicit access here just from the motorroad tag
+# (implicit access rules from highway tag handled elsewhere)
+#
+assign defaultaccess
+       switch access=  
+            switch motorroad=yes 0 1
+       switch or access=private access=no 0 1
+#
+# calculate logical bike access
+#
+assign bikeaccess
+# cycleroute remain mapped, when the highway is temporary not available / construction !!! so do not consider!
+#       or any_cycleroute
+          switch bicycle=
+                 switch vehicle=
+                        defaultaccess
+                        switch or vehicle=private vehicle=no
+                               0
+                               1
+                 not or bicycle=private or bicycle=no bicycle=dismount
+
+#
+# calculate logical foot access
+#
+assign footaccess
+       or bikeaccess
+          or bicycle=dismount
+             switch foot=
+                    defaultaccess
+                    not or foot=private foot=no
+
+#
+# if not bike-, but foot-acess, just a moderate penalty,
+# otherwise access is forbidden
+#
+assign accesspenalty_basic
+      switch bikeaccess 0
+              switch footaccess
+                     6
+                     100000
+                     
+assign accesspenalty_special
+           if reversedirection=yes
+                              then if  bicycle:backward=no then 50 else 0
+                              else
+                              if bicycle:forward=no then 50 else 0
+
+assign accesspenalty add accesspenalty_special accesspenalty_basic
+
+#
+# handle one-ways. On primary roads, wrong-oneways should
+# be close to forbidden, while on other ways we just add
+# 6 to the costfactor (making it at least 7 - you are allowed
+# to push your bike)
+#
+assign badoneway =
+       if reversedirection=yes then
+         if oneway:bicycle=yes then true
+         else if oneway= then junction=roundabout
+         else oneway=yes|true|1
+       else oneway=-1
+
+assign onewaypenalty =
+       if ( badoneway ) then
+       (
+         if ( cycleway=opposite|opposite_lane|opposite_track ) then 0
+         else if ( oneway:bicycle=no                         ) then 0
+         else if ( highway=primary|primary_link              ) then 50
+         else if ( highway=secondary|secondary_link          ) then 30
+         else if ( highway=tertiary|tertiary_link            ) then 20
+         else 6.0
+       )
+       else 0.0
+
+assign surfacepenalty =
+# if "surface" is not defined...
+        switch surface=
+#      then, for Primary, secondary and tertiary asphalt is very probable
+               switch highway=primary|primary_link|secondary|secondary_link|tertiary|tertiary_link 0
+#      then, for residential & Co. probably asphalt..
+               switch highway=road|residential          0.1
+#      then, for living_street something paved ..
+               switch highway=living_street                          0.3
+#      then, for "service & cycleway"  possibly good (but not sure!) ...
+               switch highway=service|cycleway 0.5
+               switch highway=unclassified switch any_cycleroute  0.8        1.3
+# in some cases only smoothness is tagged but surface not!
+               switch smoothness=good|excellent         0
+# else, check if tracktype=grade1, then it is "something" paved, so middle penalty
+               switch tracktype=grade1                               0.2
+# if a cycleroute is defined, surface can not be horrible...
+# not longer so !!!
+# switch any_cycleroute                                 2.5
+               switch bicycle=yes|designated                                    2.5   5
+# now, surface is defined:
+        switch surface=asphalt                                       0
+        switch surface=paved switch smoothness=excellent   0.1 switch smoothness=good  0.2  0.5 # befestigte(harte)Oberfl sche
+        switch surface=gravel|sand|pebblestone|unpaved|ground        10       # Schotter, Sand, Kies, unbefestigt
+        switch surface=grass|dirt|earth|mud|clay                     25       # naturbelassene Oberfl sche, Gras, Schutz Schlamm...
+        switch surface=fine_gravel switch smoothness=good|excellent 0.2  4    # Splitt
+        switch surface=compacted switch smoothness=excellent 0.1 
+                switch smoothness=good                       0.2
+                switch smoothness=intermediate               0.5     4        # verdichtete Oberflaesche
+        switch surface=sett switch smoothness=good|excellent         0.1  0.3 # behauene Pflastersteine
+#        switch concrete=plates                                       1        # Betonplattenwege
+        switch surface=concrete|paving_stones|wood|metal   switch smoothness=excellent 0.1   switch smoothness=good 0.3  1.3 # Beton, Pflastersteine (geschnitzt), Holz, Metall
+        switch surface=cobblestone|sett switch smoothness=good|excellent  1 2 # Kopfsteinpflaster
+#       switch surface=unhewn_cobblestone                            3        # ungeschnitzter Pflasterstein
+        switch concrete=lanes                                        2        # Betonspurplatten
+        switch surface=grass_paver                                   5        # Rasengittersteine
+
+# surface not known and probably not paved / no asphalt...
+                                                                     8
+
+assign tracktypepenalty
+        switch or tracktype=   tracktype=grade1       0
+        switch tracktype=grade2  
+               switch surface=fine_gravel|compacted 
+               switch smoothness=excellent          0 
+               switch smoothness=good               0.3       1 1
+        switch tracktype=grade3              8
+        switch tracktype=grade4              15
+        switch tracktype=grade5              50 0
+
+
+assign trafficpenalty =
+      if   estimated_traffic_class=|1|2  then 0
+      else if estimated_traffic_class=3 then multiply  0.3  consider_traffic
+      else if estimated_traffic_class=4 then multiply  0.6   consider_traffic
+      else if estimated_traffic_class=5 then multiply  0.9   consider_traffic
+      else if estimated_traffic_class=6|7 then multiply 1.5   consider_traffic
+      else 0
+
+assign smoothnesspenalty =
+  switch smoothness=good                    0.1
+  switch smoothness=intermediate            0.3
+  switch smoothness=bad                     1
+  switch smoothness=very_bad                2
+  switch smoothness=horrible                4.5
+                                            0
+
+assign eval_maxspeed =
+       switch highway=primary|primary_link|secondary|secondary_link|tertiary|tertiary_link
+       if   not maxspeed=
+       then
+         switch maxspeed=10|20|30    0.1
+         switch maxspeed=40|50|urban 0.2
+         switch maxspeed=60          0.5
+         switch maxspeed=70          1.2
+         switch maxspeed=80          1.5
+         switch maxspeed=90          2
+         switch maxspeed=100|rural   3
+         switch maxspeed=110         7
+         switch maxspeed=120         12
+         switch maxspeed=130         50 0
+
+        else
+
+       switch reversedirection=yes
+         switch maxspeed:backward=10|20|30    0.1
+         switch maxspeed:backward=40|50|urban 0.2
+         switch maxspeed:backward=60          0.5
+         switch maxspeed:backward=70          1.2
+         switch maxspeed:backward=80          1.5
+         switch maxspeed:backward=90          2
+         switch maxspeed:backward=100|rural   3
+         switch maxspeed:backward=110         7
+         switch maxspeed:backward=120         12
+         switch maxspeed:backward=130         50   0
+
+
+         switch maxspeed:forward=            1.2           # default is 70 km/h when no maxspeed tag at all found
+         switch maxspeed:forward=10|20|30    0.1
+         switch maxspeed:forward=40|50|urban 0.2
+         switch maxspeed:forward=60          0.5
+         switch maxspeed:forward=70          1.2
+         switch maxspeed:forward=80          1.5
+         switch maxspeed:forward=90          2
+         switch maxspeed:forward=100|rural   3
+         switch maxspeed:forward=110         7
+         switch maxspeed:forward=120         12
+         switch maxspeed:forward=130         50   0
+
+        0    # no maxspedd penalty when not primary secondary tertiary!
+
+
+assign maxsp3 multiply eval_maxspeed consider_traffic
+
+assign maxspeedpenalty
+       switch highway=primary|primary_link
+         multiply maxsp3 1
+       switch highway=secondary|secondary_link
+         multiply maxsp3  0.8
+       switch highway=tertiary|tertiary_link
+         multiply maxsp3  0.6
+        0
+
+
+# if bicycle=use_sidepath, then try to prefer the (hopefully!) existing sidepath with a penalty on this highway (only if avoid_path is not set)
+assign usesidepathpenalty =
+       switch bicycle=use_sidepath switch avoid_path 0 0.5 0
+
+# give a light advantage to highways with a relation cycleroute
+assign nocycleroute_penalty switch any_cycleroute  0 0.05
+
+assign not_bicycle_designatedpenalty switch bicycle=designated 0 0.1
+
+assign sum_highwaypenalty
+  add surfacepenalty
+  add tracktypepenalty
+  add trafficpenalty
+  add smoothnesspenalty
+  add maxspeedpenalty
+  add usesidepathpenalty
+  add nocycleroute_penalty
+      not_bicycle_designatedpenalty
+
+# penalties differ when a cycleway is associated to the highway with "cycleway=yes"
+
+assign cycleway_surfacepenalty
+  switch any_cycleway
+        switch cycleway:surface=                                              surfacepenalty  # if not specified,  same as highway 
+        switch cycleway:surface=asphalt                                       0
+        switch cycleway:surface=sett                                          0.3      # behauene Pflastersteine
+        switch cycleway:surface=paved                                         0.3      # befestigte(harte)Oberflaesche
+        switch cycleway:surface=concrete|paving_stones                        0.8      # Beton, Pflastersteine (geschnitzt)
+        switch cycleway:surface=cobblestone|sett                              2        # Kopfsteinpflaster
+        switch cycleway:surface=fine_gravel|compacted                         4        # Splitt,verdichtete Oberflaesche
+        switch cycleway:surface=gravel                                        10       # Schotter
+                                                                              0        # unknown value...
+        1000    # no cycleway
+
+
+# temporary...
+assign cycleway_smoothnesspenalty             smoothnesspenalty # temporray same as highway
+
+assign sum_cyclewaypenalty
+   switch any_cycleway                                                        # cycleway exists
+       add multiply maxspeedpenalty cycleway_lane_penalty
+       add multiply trafficpenalty cycleway_lane_penalty
+       add cycleway_surfacepenalty
+       add cycleway_smoothnesspenalty
+           usesidepathpenalty
+#       add nocycleroute_penalty
+#       add not_bicycle_designatedpenalty
+                                                                              10000  # no cycleway
+
+assign noise_penalty
+   switch consider_noise
+     switch estimated_noise_class=  0
+     switch estimated_noise_class=1  0.3
+     switch estimated_noise_class=2  0.6
+     switch estimated_noise_class=3  1
+     switch estimated_noise_class=4  1.2
+     switch estimated_noise_class=5  1.5
+     switch estimated_noise_class=6  2 0 0
+
+assign river_advantage
+   switch consider_river
+     switch estimated_river_class=  0
+     switch estimated_river_class=1  -0.3
+     switch estimated_river_class=2  -0.7
+     switch estimated_river_class=3  -1.2
+     switch estimated_river_class=4  -1.5
+     switch estimated_river_class=5  -2
+     switch estimated_river_class=6  -2.5 99 0
+
+assign forest_advantage
+   switch consider_forest
+     switch estimated_forest_class=  0
+     switch estimated_forest_class=1  -0.3
+     switch estimated_forest_class=2  -0.6
+     switch estimated_forest_class=3  -0.9
+     switch estimated_forest_class=4  -1.2
+     switch estimated_forest_class=5  -1.4
+     switch estimated_forest_class=6  -1.7 99 0
+
+assign town_penalty
+   switch consider_town
+     switch estimated_town_class=  0
+     switch estimated_town_class=1  0.4
+     switch estimated_town_class=2  0.6
+     switch estimated_town_class=3  0.9
+     switch estimated_town_class=4  1.2
+     switch estimated_town_class=5  1.6
+     switch estimated_town_class=6  2.5 99 0
+
+assign sum_costs_positiv
+  add town_penalty
+  add noise_penalty
+  switch and highway= not route=ferry  100000
+  add min sum_highwaypenalty sum_cyclewaypenalty
+  switch or highway=proposed highway=abandoned 10000
+  add max onewaypenalty accesspenalty
+  switch  highway=track|road                          1
+  switch    highway=residential add switch bicycle_road=yes  1.1      1.5   adj_traffic
+  switch or highway=tertiary highway=tertiary_link    1.1
+  switch or highway=primary highway=primary_link      1.3
+  switch or highway=secondary highway=secondary_link  1.2
+  switch    highway=cycleway                          1
+  switch    highway=unclassified                      1.2
+  switch    highway=service switch ( or service=  or service=driveway service=alley ) 1.2 11
+  switch    highway=path                             # path can be as good as cycleway with asphalt or just good fór hiking: what is it?
+            switch avoid_path                         10
+            switch  bicycle=designated|yes|permissive   1.2  # ok
+#            switch bicycle=no|dismount                5   # accesspenalty allready added
+            switch  surface=asphalt                   1.5  # ok, but not sure free for bikers
+            switch cycleway:surface=asphalt           1.5
+            switch  tracktype=grade1                  1.5
+            switch any_cycleroute                     3
+                                                      10
+  switch    highway=footway   add switch bicycle=yes|designated|permissive     2  switch any_cycleroute 2    4.8  adj_traffic
+  switch or highway=motorway highway=motorway_link    10000
+  switch or highway=trunk highway=trunk_link          switch bicycle=yes|designated|permissive  3 30
+  switch    highway=pedestrian   add switch bicycle=yes|designated|permissive    2  switch any_cycleroute 2   6     adj_traffic
+  switch    highway=steps                             100
+  switch    route=ferry                               11
+  switch    highway=bridleway                         31
+  switch    highway=living_street              add       1.3 adj_traffic
+                                                      1119.9
+
+
+assign costfactor
+  max 1
+  add river_advantage  add forest_advantage  multiply sum_costs_positiv adj_param
+ 
+# way priorities used for voice hint generation
+
+assign priorityclassifier =
+  if      ( highway=motorway                  ) then  30
+  else if ( highway=motorway_link             ) then  29
+  else if ( highway=trunk                     ) then  28
+  else if ( highway=trunk_link                ) then  27
+  else if ( highway=primary                   ) then  23
+  else if ( highway=primary_link              ) then  9
+  else if ( highway=secondary                 ) then  22
+  else if ( highway=secondary_link            ) then  9
+  else if ( highway=tertiary                  ) then  21
+  else if ( highway=tertiary_link             ) then  9
+  else if ( highway=residential|living_street ) then  8
+  else if ( highway=unclassified              ) then  8
+  else if ( highway=service                   ) then  8
+  else if ( highway=cycleway                  ) then  8
+  else if ( bicycle=designated                ) then  8
+  else if ( highway=track|road|path )
+        then if or surface=asphalt|paved|paving_stones|concrete|wood|metal tracktype=grade1 then 8 else 6
+  else if ( highway=steps                     ) then  2
+  else if ( highway=pedestrian                ) then  2
+  else 0
+
+# some more classifying bits used for voice hint generation...
+
+assign isbadoneway = not equal onewaypenalty 0
+assign isgoodoneway = if reversedirection=yes then oneway=-1
+                      else if oneway= then junction=roundabout else oneway=yes|true|1
+assign isroundabout = junction=roundabout
+assign islinktype = highway=motorway_link|trunk_link|primary_link|secondary_link|tertiary_link
+assign isgoodforcars = if greater priorityclassifier 6 then true
+                  else if highway=residential|living_street|service then true
+                  else if ( and highway=track tracktype=grade1 ) then true
+                  else false
+
+# ... encoded into a bitmask
+
+assign classifiermask
+#      add          isbadoneway # no voice hint if 1 of the 2 possibilities is badoneway
+                      add          isbadoneway
+                      add multiply isgoodoneway   2
+                      add multiply isroundabout   4
+                      add multiply islinktype     8
+                          multiply isgoodforcars 16
+
+
+---context:node  # following code refers to node tags
+
+assign defaultaccess
+       switch access=
+              1 # add default barrier restrictions here!
+              switch or access=private access=no
+                     0
+                     1
+
+assign bikeaccess
+       or nodeaccessgranted=yes
+          switch bicycle=
+                 switch vehicle=
+                        defaultaccess
+                        switch or vehicle=private vehicle=no
+                               0
+                               1
+                 switch or bicycle=private or bicycle=no bicycle=dismount
+                        0
+                        1
+
+assign footaccess
+       or bicycle=dismount
+          switch foot=
+                 defaultaccess
+                 switch or foot=private foot=no
+                        0
+                        1
+
+assign railwaypenalty switch railway= 0 multiply adj_param 155
+
+assign barrierpenalty  switch barrier= 0
+                       switch barrier=kerb multiply adj_param 19
+                       switch barrier=block|bollard|swing_gate multiply adj_param 59 multiply adj_param 139
+
+assign crossing_penalty 
+  switch consider_crossing
+  switch way:coming_from_lowprio
+   switch estimated_crossing_class=   0
+      switch estimated_crossing_class=1  111
+      switch estimated_crossing_class=2  211
+      switch estimated_crossing_class=3  311
+      switch estimated_crossing_class=4  511
+      switch estimated_crossing_class=5  711
+      switch estimated_crossing_class=6  911
+0 0 0
+
+assign initialcost
+       add crossing_penalty
+       add railwaypenalty
+       add barrierpenalty
+       switch bikeaccess
+              0
+              switch footaccess
+                     multiply adj_param 300
+                     multiply adj_param 1000000
+
+
