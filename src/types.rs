@@ -92,3 +92,39 @@ impl From<Point3D> for (MicroDegrees, MicroDegrees, ElevationQuarterMeters) {
         (p.lon, p.lat, p.elev)
     }
 }
+
+/// Geographic bounding box in degrees `(min_lon, min_lat, max_lon, max_lat)`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct BoundingBox {
+    pub min_lon: f64,
+    pub min_lat: f64,
+    pub max_lon: f64,
+    pub max_lat: f64,
+}
+
+impl BoundingBox {
+    #[inline(always)]
+    pub const fn new(min_lon: f64, min_lat: f64, max_lon: f64, max_lat: f64) -> Self {
+        Self {
+            min_lon,
+            min_lat,
+            max_lon,
+            max_lat,
+        }
+    }
+}
+
+impl std::str::FromStr for BoundingBox {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<f64> = s
+            .split(',')
+            .filter_map(|t| t.trim().parse::<f64>().ok())
+            .collect();
+        if parts.len() != 4 {
+            return Err("Expected min_lon,min_lat,max_lon,max_lat".to_string());
+        }
+        Ok(Self::new(parts[0], parts[1], parts[2], parts[3]))
+    }
+}

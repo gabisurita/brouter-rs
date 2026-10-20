@@ -31,7 +31,7 @@ use crate::dsl::evaluator::ProfileEvaluator;
 use crate::dsl::lookups::LookupData;
 use crate::dsl::parser::Profile;
 use crate::graph::matcher::MatchedWaypoint;
-use crate::graph::routing_graph::{GraphEdge, RoutingGraph, NO_DESC};
+use crate::graph::routing_graph::{GraphEdge, RoutingGraph, SnapRequest, NO_DESC};
 use crate::graph::spatial::{
     self, calc_angle, distance, ilat_to_lat, ilon_to_lon, selev_to_elevation,
 };
@@ -52,6 +52,150 @@ pub struct RoutingOptions<'a> {
     pub force_start_direction: bool,
     pub turn_instruction_mode: Option<i32>,
     pub direct_legs: &'a [bool],
+}
+
+impl<'a> RoutingOptions<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn alternative_idx(mut self, alternative_idx: usize) -> Self {
+        self.alternative_idx = alternative_idx;
+        self
+    }
+
+    pub fn nogos(mut self, nogos: &'a [NogoArea]) -> Self {
+        self.nogos = nogos;
+        self
+    }
+
+    pub fn start_direction(mut self, start_direction: Option<f64>) -> Self {
+        self.start_direction = start_direction;
+        self
+    }
+
+    pub fn force_start_direction(mut self, force_start_direction: bool) -> Self {
+        self.force_start_direction = force_start_direction;
+        self
+    }
+
+    pub fn turn_instruction_mode(mut self, turn_instruction_mode: Option<i32>) -> Self {
+        self.turn_instruction_mode = turn_instruction_mode;
+        self
+    }
+
+    pub fn direct_legs(mut self, direct_legs: &'a [bool]) -> Self {
+        self.direct_legs = direct_legs;
+        self
+    }
+}
+
+/// Named parameters for computing a route with [`AStarRouter::route`].
+pub struct RouteRequest<'a, G = &'a mut RoutingGraph> {
+    pub graph: G,
+    pub lookups: &'a LookupData,
+    pub profile: &'a Profile,
+    pub waypoints: &'a [(f64, f64)],
+    pub options: RoutingOptions<'a>,
+}
+
+impl<'a, G> RouteRequest<'a, G> {
+    pub fn new(
+        graph: G,
+        lookups: &'a LookupData,
+        profile: &'a Profile,
+        waypoints: &'a [(f64, f64)],
+    ) -> Self {
+        Self {
+            graph,
+            lookups,
+            profile,
+            waypoints,
+            options: RoutingOptions::default(),
+        }
+    }
+
+    pub fn options(mut self, options: RoutingOptions<'a>) -> Self {
+        self.options = options;
+        self
+    }
+
+    pub fn alternative_idx(mut self, alternative_idx: usize) -> Self {
+        self.options.alternative_idx = alternative_idx;
+        self
+    }
+
+    pub fn nogos(mut self, nogos: &'a [NogoArea]) -> Self {
+        self.options.nogos = nogos;
+        self
+    }
+
+    pub fn start_direction(mut self, start_direction: Option<f64>) -> Self {
+        self.options.start_direction = start_direction;
+        self
+    }
+
+    pub fn force_start_direction(mut self, force_start_direction: bool) -> Self {
+        self.options.force_start_direction = force_start_direction;
+        self
+    }
+
+    pub fn turn_instruction_mode(mut self, turn_instruction_mode: Option<i32>) -> Self {
+        self.options.turn_instruction_mode = turn_instruction_mode;
+        self
+    }
+
+    pub fn direct_legs(mut self, direct_legs: &'a [bool]) -> Self {
+        self.options.direct_legs = direct_legs;
+        self
+    }
+}
+
+/// Fluent query builder returned by [`AStarRouter::query`].
+pub struct RouteQuery<'r, 'a, G> {
+    router: &'r AStarRouter,
+    request: RouteRequest<'a, G>,
+}
+
+impl<'r, 'a, G: Into<GraphRef<'a>>> RouteQuery<'r, 'a, G> {
+    pub fn options(mut self, options: RoutingOptions<'a>) -> Self {
+        self.request.options = options;
+        self
+    }
+
+    pub fn alternative_idx(mut self, alternative_idx: usize) -> Self {
+        self.request.options.alternative_idx = alternative_idx;
+        self
+    }
+
+    pub fn nogos(mut self, nogos: &'a [NogoArea]) -> Self {
+        self.request.options.nogos = nogos;
+        self
+    }
+
+    pub fn start_direction(mut self, start_direction: Option<f64>) -> Self {
+        self.request.options.start_direction = start_direction;
+        self
+    }
+
+    pub fn force_start_direction(mut self, force_start_direction: bool) -> Self {
+        self.request.options.force_start_direction = force_start_direction;
+        self
+    }
+
+    pub fn turn_instruction_mode(mut self, turn_instruction_mode: Option<i32>) -> Self {
+        self.request.options.turn_instruction_mode = turn_instruction_mode;
+        self
+    }
+
+    pub fn direct_legs(mut self, direct_legs: &'a [bool]) -> Self {
+        self.request.options.direct_legs = direct_legs;
+        self
+    }
+
+    pub fn compute(self) -> Result<RouteResult, String> {
+        self.router.route(self.request)
+    }
 }
 
 /// A* router engine implementing 2-pass guided search.
@@ -89,6 +233,20 @@ pub enum GraphRef<'a> {
     Mutable(&'a mut RoutingGraph),
 }
 
+impl<'a> From<&'a RoutingGraph> for GraphRef<'a> {
+    #[inline(always)]
+    fn from(graph: &'a RoutingGraph) -> Self {
+        Self::Shared(graph)
+    }
+}
+
+impl<'a> From<&'a mut RoutingGraph> for GraphRef<'a> {
+    #[inline(always)]
+    fn from(graph: &'a mut RoutingGraph) -> Self {
+        Self::Mutable(graph)
+    }
+}
+
 impl<'a> std::ops::Deref for GraphRef<'a> {
     type Target = RoutingGraph;
     #[inline(always)]
@@ -106,6 +264,21 @@ impl<'a> GraphRef<'a> {
         match self {
             Self::Shared(_) => None,
             Self::Mutable(g) => Some(*g),
+        }
+    }
+
+    /// Snaps a geographic coordinate described by [`SnapRequest`] to the nearest accessible road edge,
+    /// using lazy on-demand cell loading when [`GraphRef::Mutable`] is held.
+    #[inline]
+    pub fn snap(
+        &mut self,
+        req: SnapRequest<'_>,
+        evaluator: &mut ProfileEvaluator,
+        lookups: &LookupData,
+    ) -> Option<MatchedWaypoint> {
+        match self {
+            Self::Shared(g) => g.snap(req, evaluator, lookups),
+            Self::Mutable(g) => g.snap_lazy(req, evaluator, lookups),
         }
     }
 }
@@ -184,87 +357,38 @@ impl AStarRouter {
         Self::default()
     }
 
-    /// Computes a continuous route passing sequentially through multiple waypoints.
-    pub fn find_multi_route(
+    /// Computes a route for a [`RouteRequest`], supporting both shared (`&RoutingGraph`)
+    /// and lazy on-demand (`&mut RoutingGraph`) graphs.
+    pub fn route<'a, G: Into<GraphRef<'a>>>(
         &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        waypoints: &[(f64, f64)],
+        request: RouteRequest<'a, G>,
     ) -> Result<RouteResult, String> {
-        self.find_multi_route_with_alternative_and_nogos(graph, lookups, profile, waypoints, 0, &[])
-    }
-
-    /// Computes a continuous route passing sequentially through multiple waypoints with an alternative route index (0..=3).
-    pub fn find_multi_route_with_alternative(
-        &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        waypoints: &[(f64, f64)],
-        alternative_idx: usize,
-    ) -> Result<RouteResult, String> {
-        self.find_multi_route_with_alternative_and_nogos(
-            graph,
-            lookups,
-            profile,
-            waypoints,
-            alternative_idx,
-            &[],
+        let mut gref = request.graph.into();
+        self.route_with_graph_ref(
+            &mut gref,
+            request.lookups,
+            request.profile,
+            request.waypoints,
+            &request.options,
         )
     }
 
-    /// Computes a continuous route passing sequentially through multiple waypoints with an alternative route index (0..=3) and no-go areas.
-    pub fn find_multi_route_with_alternative_and_nogos(
-        &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        waypoints: &[(f64, f64)],
-        alternative_idx: usize,
-        nogos: &[NogoArea],
-    ) -> Result<RouteResult, String> {
-        let options = RoutingOptions {
-            alternative_idx,
-            nogos,
-            ..Default::default()
-        };
-        self.find_multi_route_with_options(graph, lookups, profile, waypoints, &options)
+    /// Starts a fluent [`RouteQuery`] builder for the given graph, lookups, profile, and waypoints.
+    pub fn query<'r, 'a, G: Into<GraphRef<'a>>>(
+        &'r self,
+        graph: G,
+        lookups: &'a LookupData,
+        profile: &'a Profile,
+        waypoints: &'a [(f64, f64)],
+    ) -> RouteQuery<'r, 'a, G> {
+        RouteQuery {
+            router: self,
+            request: RouteRequest::new(graph, lookups, profile, waypoints),
+        }
     }
 
-    /// Computes a continuous route passing sequentially through multiple waypoints with lazy on-demand cell loading.
-    pub fn find_multi_route_with_alternative_and_nogos_lazy(
-        &self,
-        graph: &mut RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        waypoints: &[(f64, f64)],
-        alternative_idx: usize,
-        nogos: &[NogoArea],
-    ) -> Result<RouteResult, String> {
-        let options = RoutingOptions {
-            alternative_idx,
-            nogos,
-            ..Default::default()
-        };
-        let mut gref = GraphRef::Mutable(graph);
-        self.find_multi_route_with_options_ref(&mut gref, lookups, profile, waypoints, &options)
-    }
-
-    /// Computes a continuous route passing sequentially through multiple waypoints with full routing options.
-    pub fn find_multi_route_with_options(
-        &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        waypoints: &[(f64, f64)],
-        options: &RoutingOptions<'_>,
-    ) -> Result<RouteResult, String> {
-        let mut gref = GraphRef::Shared(graph);
-        self.find_multi_route_with_options_ref(&mut gref, lookups, profile, waypoints, &options)
-    }
-
-    pub fn find_multi_route_with_options_ref(
+    /// Computes a route across `waypoints` using an existing [`GraphRef`].
+    pub fn route_with_graph_ref(
         &self,
         graph: &mut GraphRef<'_>,
         lookups: &LookupData,
@@ -296,7 +420,7 @@ impl AStarRouter {
                 } else {
                     None
                 };
-                self.find_route_leg_ref(
+                self.route_leg_ref(
                     graph,
                     lookups,
                     profile,
@@ -315,67 +439,6 @@ impl AStarRouter {
         merged.turn_instruction_mode = timode;
         merged.recalc_track(graph, &kinematic_cfg);
         Ok(merged)
-    }
-
-    /// Computes a complete route between `start` and `target` waypoints.
-    pub fn find_route(
-        &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        start: (f64, f64),
-        target: (f64, f64),
-    ) -> Result<RouteResult, String> {
-        self.find_route_with_alternative_and_nogos(graph, lookups, profile, start, target, 0, &[])
-    }
-
-    /// Computes a complete route between `start` and `target` waypoints with an alternative route index (0..=3).
-    pub fn find_route_with_alternative(
-        &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        start: (f64, f64),
-        target: (f64, f64),
-        alternative_idx: usize,
-    ) -> Result<RouteResult, String> {
-        self.find_route_with_alternative_and_nogos(
-            graph,
-            lookups,
-            profile,
-            start,
-            target,
-            alternative_idx,
-            &[],
-        )
-    }
-
-    /// Computes a complete route between `start` and `target` waypoints with an alternative route index (0..=3) and no-go areas.
-    pub fn find_route_with_alternative_and_nogos(
-        &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        start: (f64, f64),
-        target: (f64, f64),
-        alternative_idx: usize,
-        nogos: &[NogoArea],
-    ) -> Result<RouteResult, String> {
-        let timode = profile.get_global_var("turnInstructionMode", 0.0) as i32;
-        let mut route = self.find_route_leg(
-            graph,
-            lookups,
-            profile,
-            start,
-            target,
-            alternative_idx,
-            nogos,
-            None,
-            false,
-            timode,
-        )?;
-        route.recalc_track(graph, &KinematicConfig::from_profile(profile));
-        Ok(route)
     }
 
     fn find_beeline_leg(
@@ -460,36 +523,7 @@ impl AStarRouter {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn find_route_leg(
-        &self,
-        graph: &RoutingGraph,
-        lookups: &LookupData,
-        profile: &Profile,
-        start: (f64, f64),
-        target: (f64, f64),
-        alternative_idx: usize,
-        nogos: &[NogoArea],
-        start_direction: Option<f64>,
-        force_start_direction: bool,
-        turn_instruction_mode: i32,
-    ) -> Result<RouteResult, String> {
-        let mut gref = GraphRef::Shared(graph);
-        self.find_route_leg_ref(
-            &mut gref,
-            lookups,
-            profile,
-            start,
-            target,
-            alternative_idx,
-            nogos,
-            start_direction,
-            force_start_direction,
-            turn_instruction_mode,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn find_route_leg_ref(
+    pub fn route_leg_ref(
         &self,
         graph: &mut GraphRef<'_>,
         lookups: &LookupData,
@@ -513,121 +547,35 @@ impl AStarRouter {
             .unwrap_or_else(|| spatial::get_direction(start_pt, target_pt));
         let dir_target_to_start = spatial::get_direction(target_pt, start_pt);
 
-        let start_mwp = if let Some(g_mut) = graph.as_mut() {
-            g_mut
-                .snap_waypoint_with_direction_lazy(
-                    "from",
-                    start_lon,
-                    start_lat,
-                    250.0,
-                    dir_start_to_target,
-                    &mut evaluator,
-                    lookups,
-                )
-                .or_else(|| {
-                    g_mut.snap_waypoint_with_direction_lazy(
-                        "from",
-                        start_lon,
-                        start_lat,
-                        1_500.0,
-                        dir_start_to_target,
-                        &mut evaluator,
-                        lookups,
-                    )
-                })
-                .or_else(|| {
-                    g_mut.snap_waypoint_with_direction_lazy(
-                        "from",
-                        start_lon,
-                        start_lat,
-                        10_000.0,
-                        dir_start_to_target,
-                        &mut evaluator,
-                        lookups,
-                    )
-                })
+        let radii: &[f64] = if graph.has_cell_provider() {
+            &[250.0, 1_500.0, 10_000.0]
         } else {
-            graph
-                .snap_waypoint_with_direction(
-                    "from",
-                    start_lon,
-                    start_lat,
-                    250.0,
-                    dir_start_to_target,
-                    &mut evaluator,
-                    lookups,
-                )
-                .or_else(|| {
-                    graph.snap_waypoint_with_direction(
-                        "from",
-                        start_lon,
-                        start_lat,
-                        10_000.0,
-                        dir_start_to_target,
-                        &mut evaluator,
-                        lookups,
-                    )
-                })
-        }
-        .ok_or_else(|| "Start position could not be mapped to graph".to_string())?;
+            &[250.0, 10_000.0]
+        };
 
-        let target_mwp = if let Some(g_mut) = graph.as_mut() {
-            g_mut
-                .snap_waypoint_with_direction_lazy(
-                    "to",
-                    target_lon,
-                    target_lat,
-                    250.0,
-                    dir_target_to_start,
+        let start_mwp = radii
+            .iter()
+            .find_map(|&r| {
+                graph.snap(
+                    SnapRequest::new("from", start_lon, start_lat, r)
+                        .with_direction(dir_start_to_target),
                     &mut evaluator,
                     lookups,
                 )
-                .or_else(|| {
-                    g_mut.snap_waypoint_with_direction_lazy(
-                        "to",
-                        target_lon,
-                        target_lat,
-                        1_500.0,
-                        dir_target_to_start,
-                        &mut evaluator,
-                        lookups,
-                    )
-                })
-                .or_else(|| {
-                    g_mut.snap_waypoint_with_direction_lazy(
-                        "to",
-                        target_lon,
-                        target_lat,
-                        10_000.0,
-                        dir_target_to_start,
-                        &mut evaluator,
-                        lookups,
-                    )
-                })
-        } else {
-            graph
-                .snap_waypoint_with_direction(
-                    "to",
-                    target_lon,
-                    target_lat,
-                    250.0,
-                    dir_target_to_start,
+            })
+            .ok_or_else(|| "Start position could not be mapped to graph".to_string())?;
+
+        let target_mwp = radii
+            .iter()
+            .find_map(|&r| {
+                graph.snap(
+                    SnapRequest::new("to", target_lon, target_lat, r)
+                        .with_direction(dir_target_to_start),
                     &mut evaluator,
                     lookups,
                 )
-                .or_else(|| {
-                    graph.snap_waypoint_with_direction(
-                        "to",
-                        target_lon,
-                        target_lat,
-                        10_000.0,
-                        dir_target_to_start,
-                        &mut evaluator,
-                        lookups,
-                    )
-                })
-        }
-        .ok_or_else(|| "Target position could not be mapped to graph".to_string())?;
+            })
+            .ok_or_else(|| "Target position could not be mapped to graph".to_string())?;
 
         if let Some(g_mut) = graph.as_mut() {
             if g_mut.has_cell_provider() {

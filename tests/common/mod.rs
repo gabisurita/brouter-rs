@@ -19,7 +19,7 @@ pub fn repo_path(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
 }
 
-/// Shared preloaded ServerState instance with a single unified regional graph covering all test corridors.
+/// Shared preloaded ServerState instance with a single unified regional graph covering all test routes.
 /// All integration and parity tests share this graph, strictly bounding memory to ~3.2 GB.
 pub static SHARED_STATE: LazyLock<Option<Arc<ServerState>>> = LazyLock::new(|| {
     let seg_path = repo_path("data/segments4");
@@ -30,10 +30,7 @@ pub static SHARED_STATE: LazyLock<Option<Arc<ServerState>>> = LazyLock::new(|| {
     let state = ServerState::with_bounding_box(
         seg_path,
         repo_path("profiles"),
-        -3.20,
-        50.80,
-        0.05,
-        51.80,
+        brouter_rs::BoundingBox::new(-3.20, 50.80, 0.05, 51.80),
     )
     .expect("Failed to initialize shared preloaded ServerState");
 
@@ -85,7 +82,7 @@ pub fn parse_fixture_data(fixture_path: &Path) -> Option<(f64, f64, f64, f64, Ve
 }
 
 pub async fn assert_route_parity(
-    corridor: &str,
+    route_name: &str,
     profile: &str,
     lonlats: &str,
     alt_idx: Option<usize>,
@@ -97,7 +94,7 @@ pub async fn assert_route_parity(
     min_coord_overlap_pct: f64,
 ) {
     let Some(app) = get_test_app() else {
-        println!("Skipping {}: test data segments not found", corridor);
+        println!("Skipping {}: test data segments not found", route_name);
         return;
     };
 
@@ -121,14 +118,14 @@ pub async fn assert_route_parity(
         response.status(),
         StatusCode::OK,
         "Failed to route {} [{}]: received status {}",
-        corridor,
+        route_name,
         profile,
         response.status()
     );
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body)
-        .unwrap_or_else(|e| panic!("Failed to parse response JSON for {}: {}", corridor, e));
+        .unwrap_or_else(|e| panic!("Failed to parse response JSON for {}: {}", route_name, e));
 
     let _ = fs::create_dir_all("target/routes");
     let out_path = format!("target/routes/{}", out_filename);
@@ -137,11 +134,11 @@ pub async fn assert_route_parity(
     let feature = json
         .get("features")
         .and_then(|f| f.get(0))
-        .unwrap_or_else(|| panic!("Missing features in response GeoJSON for {}", corridor));
+        .unwrap_or_else(|| panic!("Missing features in response GeoJSON for {}", route_name));
 
     let props = feature
         .get("properties")
-        .unwrap_or_else(|| panic!("Missing properties in response GeoJSON for {}", corridor));
+        .unwrap_or_else(|| panic!("Missing properties in response GeoJSON for {}", route_name));
 
     let dist: f64 = props["track-length"].as_str().unwrap().parse().unwrap();
     let time: f64 = props["total-time"].as_str().unwrap().parse().unwrap();
@@ -195,7 +192,7 @@ pub async fn assert_route_parity(
 
     println!(
         "  [{:<20} | {:<22}] Pts: {:>5}/{:<5} ({:>5.1}%) | Dist: {:>6.1}km ({:>+5.2}%) | Cost: {:>6.0} ({:>+5.2}%) | Time: {:>4.0}m ({:>+5.2}%) | Asc: {:>4.0}/{:<4.0}m",
-        corridor,
+        route_name,
         profile,
         rs_coords.len(),
         b_coords.len(),
@@ -213,7 +210,7 @@ pub async fn assert_route_parity(
     assert!(
         dist_delta <= max_dist_pct,
         "{} [{}]: Distance delta {:.2}% exceeds threshold {:.2}% (rsrouter: {:.1}m, brouter.de: {:.1}m)",
-        corridor,
+        route_name,
         profile,
         dist_delta,
         max_dist_pct,
@@ -224,7 +221,7 @@ pub async fn assert_route_parity(
     assert!(
         cost_delta <= max_cost_pct,
         "{} [{}]: Cost delta {:.2}% exceeds threshold {:.2}% (rsrouter: {:.0}, brouter.de: {:.0})",
-        corridor,
+        route_name,
         profile,
         cost_delta,
         max_cost_pct,
@@ -235,7 +232,7 @@ pub async fn assert_route_parity(
     assert!(
         time_delta <= max_time_pct,
         "{} [{}]: Time delta {:.2}% exceeds threshold {:.2}% (rsrouter: {:.0}s, brouter.de: {:.0}s)",
-        corridor,
+        route_name,
         profile,
         time_delta,
         max_time_pct,
@@ -247,7 +244,7 @@ pub async fn assert_route_parity(
         ascend as i32,
         b_asc as i32,
         "{} [{}]: Ascend mismatch (rsrouter: {:.0}m, brouter.de: {:.0}m)",
-        corridor,
+        route_name,
         profile,
         ascend,
         b_asc
@@ -258,7 +255,7 @@ pub async fn assert_route_parity(
             rs_coords.len(),
             b_coords.len(),
             "{} [{}]: Point count mismatch (rsrouter: {}, brouter.de: {})",
-            corridor,
+            route_name,
             profile,
             rs_coords.len(),
             b_coords.len()
@@ -267,7 +264,7 @@ pub async fn assert_route_parity(
             assert!(
                 (rs_pt.0 - br_pt.0).abs() < 1e-4 && (rs_pt.1 - br_pt.1).abs() < 1e-4,
                 "{} [{}]: Coordinate mismatch at point index {} (rs: {:?}, br: {:?})",
-                corridor,
+                route_name,
                 profile,
                 i,
                 rs_pt,
@@ -281,7 +278,7 @@ pub async fn assert_route_parity(
         assert!(
             pt_delta_pct <= 1.0,
             "{} [{}]: Point count delta {:.2}% exceeds 1.0% (rs: {}, br: {})",
-            corridor,
+            route_name,
             profile,
             pt_delta_pct,
             rs_coords.len(),
@@ -290,7 +287,7 @@ pub async fn assert_route_parity(
         assert!(
             overlap_pct >= min_coord_overlap_pct,
             "{} [{}]: Coordinate overlap {:.1}% is below required {:.1}%",
-            corridor,
+            route_name,
             profile,
             overlap_pct,
             min_coord_overlap_pct

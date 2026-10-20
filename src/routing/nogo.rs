@@ -173,6 +173,72 @@ fn parse_optional_weight(w_str: &str) -> Option<f64> {
     }
 }
 
+/// Parsed waypoints and per-leg beeline flags from BRouter's `lonlats` and `straight` query parameters.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParsedLonLats {
+    pub waypoints: Vec<(f64, f64)>,
+    pub direct_legs: Vec<bool>,
+}
+
+/// Parses BRouter's `lonlats` query string (`lon1,lat1[,d]|lon2,lat2[,d]|...`) and optional
+/// comma-separated `straight` indices into `(lon, lat)` waypoints and `direct_legs` flags.
+pub fn parse_lonlats(lonlats_str: &str, straight_str: Option<&str>) -> Result<ParsedLonLats, String> {
+    let pairs: Vec<&str> = lonlats_str
+        .split(['|', ';'])
+        .filter(|s| !s.trim().is_empty())
+        .collect();
+    if pairs.len() < 2 {
+        return Err("At least two waypoints required in 'lonlats'".to_string());
+    }
+
+    let mut waypoints = Vec::with_capacity(pairs.len());
+    let mut direct_flags = vec![false; pairs.len()];
+    for (idx, pair) in pairs.iter().enumerate() {
+        let parts: Vec<&str> = pair.split(',').collect();
+        if parts.len() < 2 {
+            return Err(format!("Invalid waypoint coordinate pair: {}", pair));
+        }
+        let lon: f64 = parts[0]
+            .trim()
+            .parse()
+            .map_err(|_| "Invalid longitude".to_string())?;
+        let lat: f64 = parts[1]
+            .trim()
+            .parse()
+            .map_err(|_| "Invalid latitude".to_string())?;
+        if parts.len() > 2 && parts[2].trim().eq_ignore_ascii_case("d") {
+            direct_flags[idx] = true;
+        }
+        waypoints.push((lon, lat));
+    }
+
+    if let Some(straight) = straight_str {
+        for token in straight.split(',') {
+            if let Ok(idx) = token.trim().parse::<usize>() {
+                if idx < direct_flags.len() {
+                    direct_flags[idx] = true;
+                }
+            }
+        }
+    }
+
+    // Matches RoutingEngine.java: `boolean calcBeeline = startWp.wpttype == MatchedWaypoint.WAYPOINT_TYPE_DIRECT;`
+    let mut direct_legs = vec![false; waypoints.len().saturating_sub(1)];
+    for i in 0..direct_legs.len() {
+        if direct_flags[i] {
+            direct_legs[i] = true;
+        }
+    }
+    if direct_legs.len() == 1 && *direct_flags.last().unwrap_or(&false) {
+        direct_legs[0] = true;
+    }
+
+    Ok(ParsedLonLats {
+        waypoints,
+        direct_legs,
+    })
+}
+
 /// Parses no-go areas from BRouter's `nogos` query parameter format:
 /// `lon,lat,radius[,weight]|lon,lat,radius[,weight]|...` (also accepts `;` separator).
 pub fn parse_nogos(s: &str) -> Vec<NogoArea> {

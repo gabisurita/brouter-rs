@@ -15,7 +15,7 @@ Some small differences exist, but they are very small and likely insignificant f
 
 ## Route Distribution
 
-| Corridor | Profile | Points (RS / BR) | Dist Delta | Cost Delta | Time Delta | Ascend (RS / BR) | Latency (RS / BR) |
+| Route | Profile | Points (RS / BR) | Dist Delta | Cost Delta | Time Delta | Ascend (RS / BR) | Latency (RS / BR) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | Clapham -> Hackney | `fastbike` | 919 / 919 | 0.00% | 0.00% | +0.01% | 12 / 12 m | 942 / 708 ms |
 | Clapham -> Hackney | `fastbike-lowtraffic` | 910 / 910 | 0.00% | 0.00% | 0.00% | 12 / 12 m | 619 / 721 ms |

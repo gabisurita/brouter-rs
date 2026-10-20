@@ -13,7 +13,7 @@ use brouter_rs::graph::spatial::{distance, lat_to_ilat, lon_to_ilon, Point2D};
 use brouter_rs::routing::cost::KinematicConfig;
 use brouter_rs::routing::nogo::NogoArea;
 use brouter_rs::routing::path::{ElevationConfig, PathState, SectionInput, StdPathCalculator};
-use brouter_rs::routing::search::AStarRouter;
+use brouter_rs::routing::search::{AStarRouter, RouteRequest, RoutingOptions};
 
 fn repo_path(rel: &str) -> PathBuf {
     let p = Path::new(rel);
@@ -195,13 +195,13 @@ fn test_real_full_route_generation() {
     println!("Computing full route using 2-pass guided A*...");
     let t_route = Instant::now();
     let route = router
-        .find_route(
-            &graph,
-            &lookups,
-            &profile,
-            (start_lon, start_lat),
-            (target_lon, target_lat),
-        )
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[(start_lon, start_lat), (target_lon, target_lat)],
+            options: RoutingOptions::default(),
+        })
         .expect("Route search failed");
     let route_elapsed = t_route.elapsed();
 
@@ -340,13 +340,13 @@ fn test_clapham_hackney_fastbike() {
     println!("Routing Clapham -> Hackney with fastbike...");
     let t_route = Instant::now();
     let route = router
-        .find_route(
+        .query(
             &graph,
             &lookups,
             &profile,
-            (start_lon, start_lat),
-            (target_lon, target_lat),
+            &[(start_lon, start_lat), (target_lon, target_lat)],
         )
+        .compute()
         .expect("Clapham -> Hackney routing failed");
     let route_elapsed = t_route.elapsed();
 
@@ -432,13 +432,13 @@ fn test_clapham_hackney_lowtraffic() {
     println!("Routing Clapham -> Hackney with fastbike-lowtraffic...");
     let t_route = Instant::now();
     let route = router
-        .find_route(
+        .query(
             &graph,
             &lookups,
             &profile,
-            (start_lon, start_lat),
-            (target_lon, target_lat),
+            &[(start_lon, start_lat), (target_lon, target_lat)],
         )
+        .compute()
         .expect("Clapham -> Hackney lowtraffic routing failed");
     let route_elapsed = t_route.elapsed();
 
@@ -527,13 +527,13 @@ fn test_clapham_hackney_verylowtraffic() {
     println!("Routing Clapham -> Hackney with fastbike-verylowtraffic...");
     let t_route = Instant::now();
     let route = router
-        .find_route(
+        .query(
             &graph,
             &lookups,
             &profile,
-            (start_lon, start_lat),
-            (target_lon, target_lat),
+            &[(start_lon, start_lat), (target_lon, target_lat)],
         )
+        .compute()
         .expect("Clapham -> Hackney verylowtraffic routing failed");
     let route_elapsed = t_route.elapsed();
 
@@ -652,7 +652,8 @@ fn test_route_with_nogo_zone() {
 
     // 1. Baseline route
     let base_route = router
-        .find_route(&graph, &lookups, &profile, start, target)
+        .query(&graph, &lookups, &profile, &[start, target])
+        .compute()
         .expect("Baseline route failed");
 
     // 2. Place a 30m hard nogo directly on a midpoint along the baseline route
@@ -663,15 +664,16 @@ fn test_route_with_nogo_zone() {
 
     // 3. Compute detour route with nogo
     let detour_route = router
-        .find_route_with_alternative_and_nogos(
-            &graph,
-            &lookups,
-            &profile,
-            start,
-            target,
-            0,
-            &[nogo],
-        )
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: RoutingOptions {
+                nogos: &[nogo],
+                ..Default::default()
+            },
+        })
         .expect("Detour route failed");
 
     // 4. Verify detour route avoids the nogo circle
@@ -738,13 +740,8 @@ fn test_car_kinematic_and_foot_modes() {
 
     let router = AStarRouter::new();
     let route = router
-        .find_route(
-            &graph,
-            &lookups,
-            &car_eco,
-            (0.07, 51.50),
-            (0.08, 51.53),
-        )
+        .query(&graph, &lookups, &car_eco, &[(0.07, 51.50), (0.08, 51.53)])
+        .compute()
         .expect("car-eco routing failed");
     assert!(route.total_distance_m > 1000.0);
     assert!(route.total_time_s > 0.0);
@@ -784,7 +781,13 @@ fn test_voicehints_messages_times_and_kml() {
     };
 
     let route = router
-        .find_multi_route_with_options(&graph, &lookups, &profile, &[start, target], &options)
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options,
+        })
         .expect("Routing failed");
 
     assert!(
@@ -868,7 +871,13 @@ fn test_heading_beeline_and_nogo_polygons() {
         ..Default::default()
     };
     let beeline_route = router
-        .find_multi_route_with_options(&graph, &lookups, &profile, &[start, target], &beeline_opts)
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: beeline_opts,
+        })
         .expect("Beeline route failed");
     assert_eq!(beeline_route.points.len(), 2);
     assert_eq!(beeline_route.total_cost, beeline_route.total_distance_m as u32);
@@ -886,10 +895,22 @@ fn test_heading_beeline_and_nogo_polygons() {
         ..Default::default()
     };
     let north_route = router
-        .find_multi_route_with_options(&graph, &lookups, &profile, &[start, target], &north_opts)
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: north_opts,
+        })
         .expect("North heading route failed");
     let south_route = router
-        .find_multi_route_with_options(&graph, &lookups, &profile, &[start, target], &south_opts)
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: south_opts,
+        })
         .expect("South heading route failed");
     assert_ne!(north_route.total_cost, south_route.total_cost);
 
@@ -909,7 +930,13 @@ fn test_heading_beeline_and_nogo_polygons() {
         ..Default::default()
     };
     let detour = router
-        .find_multi_route_with_options(&graph, &lookups, &profile, &[start, target], &poly_opts)
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: poly_opts,
+        })
         .expect("Polyline detour route failed");
     assert_ne!(detour.total_cost, north_route.total_cost);
 }
@@ -946,10 +973,12 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
 
     let router = AStarRouter::new();
     let ref_route_1 = router
-        .find_multi_route(&ref_graph, &lookups, &profile, &[start, target])
+        .query(&ref_graph, &lookups, &profile, &[start, target])
+        .compute()
         .expect("Reference route 1 failed");
     let ref_route_2 = router
-        .find_multi_route(&ref_graph, &lookups, &profile, &[start, via, target])
+        .query(&ref_graph, &lookups, &profile, &[start, via, target])
+        .compute()
         .expect("Reference route 2 failed");
 
     // 2. Lazy on-demand graph starting with 0 loaded cells
@@ -960,28 +989,26 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
 
     let t0 = Instant::now();
     let lazy_route_1 = router
-        .find_multi_route_with_alternative_and_nogos_lazy(
-            &mut lazy_graph,
-            &lookups,
-            &profile,
-            &[start, target],
-            0,
-            &[],
-        )
+        .route(RouteRequest {
+            graph: &mut lazy_graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: RoutingOptions::default(),
+        })
         .expect("Lazy route 1 failed");
     let t1 = t0.elapsed();
     let cells_after_1 = lazy_graph.loaded_cell_count();
 
     let t2 = Instant::now();
     let lazy_route_2 = router
-        .find_multi_route_with_alternative_and_nogos_lazy(
-            &mut lazy_graph,
-            &lookups,
-            &profile,
-            &[start, via, target],
-            0,
-            &[],
-        )
+        .route(RouteRequest {
+            graph: &mut lazy_graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, via, target],
+            options: RoutingOptions::default(),
+        })
         .expect("Lazy route 2 failed");
     let t3 = t2.elapsed();
     let cells_after_2 = lazy_graph.loaded_cell_count();
@@ -1029,7 +1056,8 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
         (-0.0541, 51.5431),
     ];
     let ref_route_11 = router
-        .find_multi_route(&ref_graph, &lookups, &safe_profile, &waypoints_11)
+        .query(&ref_graph, &lookups, &safe_profile, &waypoints_11)
+        .compute()
         .expect("Reference 11-waypoint route failed");
 
     let reader_11 = Arc::new(FileRd5SegmentReader::new(&segments_dir));
@@ -1037,14 +1065,13 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
     let mut lazy_graph_11 = RoutingGraph::with_cell_provider(provider_11);
     let t_11_start = Instant::now();
     let lazy_route_11 = router
-        .find_multi_route_with_alternative_and_nogos_lazy(
-            &mut lazy_graph_11,
-            &lookups,
-            &safe_profile,
-            &waypoints_11,
-            0,
-            &[],
-        )
+        .route(RouteRequest {
+            graph: &mut lazy_graph_11,
+            lookups: &lookups,
+            profile: &safe_profile,
+            waypoints: &waypoints_11,
+            options: RoutingOptions::default(),
+        })
         .expect("Lazy 11-waypoint route failed");
     println!(
         "Lazy 11-waypoint route: {:?}, cells loaded: {} (cost: {}, dist: {}m)",
@@ -1061,18 +1088,18 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
     let mut waypoints_11_moved = waypoints_11;
     waypoints_11_moved[4] = (-0.1340, 51.4790);
     let ref_route_11_moved = router
-        .find_multi_route(&ref_graph, &lookups, &safe_profile, &waypoints_11_moved)
+        .query(&ref_graph, &lookups, &safe_profile, &waypoints_11_moved)
+        .compute()
         .expect("Reference moved 11-waypoint route failed");
     let t_11_warm = Instant::now();
     let lazy_route_11_moved = router
-        .find_multi_route_with_alternative_and_nogos_lazy(
-            &mut lazy_graph_11,
-            &lookups,
-            &safe_profile,
-            &waypoints_11_moved,
-            0,
-            &[],
-        )
+        .route(RouteRequest {
+            graph: &mut lazy_graph_11,
+            lookups: &lookups,
+            profile: &safe_profile,
+            waypoints: &waypoints_11_moved,
+            options: RoutingOptions::default(),
+        })
         .expect("Lazy warm 11-waypoint route failed");
     println!(
         "Lazy 11-waypoint warm edit: {:?}, cells loaded: {} (cost: {}, dist: {}m)",

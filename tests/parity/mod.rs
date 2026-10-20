@@ -1,7 +1,7 @@
 use crate::common::assert_route_parity;
 
 // ============================================================================
-// Corridor 1: Clapham -> Hackney
+// Route 1: Clapham -> Hackney
 // ============================================================================
 const CLAPHAM_HACKNEY: &str = "-0.143613,51.462414|-0.055296,51.544998";
 
@@ -57,7 +57,7 @@ async fn test_parity_clapham_hackney_verylowtraffic() {
 }
 
 // ============================================================================
-// Corridor 2: London -> Brighton
+// Route 2: London -> Brighton
 // ============================================================================
 const LONDON_BRIGHTON: &str = "-0.127818,51.507392|-0.136913,50.822431";
 
@@ -164,7 +164,7 @@ async fn test_parity_london_brighton_alt3() {
 }
 
 // ============================================================================
-// Corridor 3: London -> Oxford
+// Route 3: London -> Oxford
 // ============================================================================
 const LONDON_OXFORD: &str = "-0.127818,51.507392|-1.257704,51.751988";
 
@@ -220,7 +220,7 @@ async fn test_parity_london_oxford_verylowtraffic() {
 }
 
 // ============================================================================
-// Corridor 4: London -> Cardiff
+// Route 4: London -> Cardiff
 // ============================================================================
 const LONDON_CARDIFF: &str = "-0.127818,51.507392|-3.179096,51.481607";
 
@@ -276,7 +276,7 @@ async fn test_parity_london_cardiff_verylowtraffic() {
 }
 
 // ============================================================================
-// Corridor 5: Richmond -> Windsor -> Marlow -> Oxford (Multi-point)
+// Route 5: Richmond -> Windsor -> Marlow -> Oxford (Multi-point)
 // ============================================================================
 const RICHMOND_OXFORD_MULTI: &str =
     "-0.3060,51.4590|-0.6060,51.4810|-0.7740,51.5710|-1.257704,51.751988";

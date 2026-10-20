@@ -38,7 +38,7 @@ struct Cli {
 struct RouteInfo {
     label: String,
     filename: String,
-    corridor: String,
+    route_name: String,
     engine: String,
     profile: String,
     distance_km: f64,
@@ -50,7 +50,7 @@ struct RouteInfo {
     geojson_data: Value,
 }
 
-fn detect_corridor(file_stem: &str) -> &'static str {
+fn detect_route_name(file_stem: &str) -> &'static str {
     let lower = file_stem.to_lowercase();
     if lower.contains("brighton") {
         if lower.contains("alt") {
@@ -137,7 +137,7 @@ struct ParsedInput {
     file_stem: String,
     engine: &'static str,
     line_style: &'static str,
-    corridor: &'static str,
+    route_name: &'static str,
     profile: &'static str,
     parsed: Value,
     dist_m: f64,
@@ -247,7 +247,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .and_then(|v| v.as_str())
             .unwrap_or("");
 
-        let corridor = detect_corridor(&file_stem);
+        let route_name = detect_route_name(&file_stem);
         let profile = detect_profile(&file_stem, raw_name);
 
         // Remove trekking from comparison per user requirement
@@ -255,8 +255,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        // Deduplicate duplicate routes for identical (corridor, engine, profile)
-        let key = (corridor, engine, profile);
+        // Deduplicate duplicate routes for identical (route_name, engine, profile)
+        let key = (route_name, engine, profile);
         if !seen_keys.insert(key) {
             continue;
         }
@@ -265,7 +265,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             file_stem,
             engine,
             line_style,
-            corridor,
+            route_name,
             profile,
             parsed,
             dist_m,
@@ -280,21 +280,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    let unique_corridors: HashSet<_> = parsed_inputs.iter().map(|p| p.corridor).collect();
-    let has_multiple_corridors = unique_corridors.len() > 1;
+    let unique_routes: HashSet<_> = parsed_inputs.iter().map(|p| p.route_name).collect();
+    let has_multiple_routes = unique_routes.len() > 1;
 
     let mut route_infos = Vec::new();
 
     for item in parsed_inputs {
         let color = pick_color(item.profile);
 
-        let label = if has_multiple_corridors {
-            let short_corridor = if item.corridor.contains("Richmond") {
+        let label = if has_multiple_routes {
+            let short_route = if item.route_name.contains("Richmond") {
                 "Richmond -> Oxford (multi)"
             } else {
-                item.corridor.split(" -> ").last().unwrap_or(item.corridor)
+                item.route_name.split(" -> ").last().unwrap_or(item.route_name)
             };
-            format!("{}: [{}] {}", short_corridor, item.engine, item.profile)
+            format!("{}: [{}] {}", short_route, item.engine, item.profile)
         } else {
             format!("[{}] {}", item.engine, item.profile)
         };
@@ -302,7 +302,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         route_infos.push(RouteInfo {
             label,
             filename: item.file_stem,
-            corridor: item.corridor.to_string(),
+            route_name: item.route_name.to_string(),
             engine: item.engine.to_string(),
             profile: item.profile.to_string(),
             distance_km: item.dist_m / 1000.0,
@@ -464,9 +464,9 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
           <button class="filter-btn" id="engine-bikerouter-btn"><span class="legend-badge dotted" style="border-color:#38bdf8;"></span>bikerouter.de (Dotted)</button>
         </div>
       </div>
-      <div class="filter-group" id="corridor-group" style="display: none;">
-        <span class="filter-label">Corridor:</span>
-        <div class="filters" id="corridor-filters"></div>
+      <div class="filter-group" id="route-group" style="display: none;">
+        <span class="filter-label">Route:</span>
+        <div class="filters" id="route-filters"></div>
       </div>
       <div class="filter-group" id="profile-group" style="display: none;">
         <span class="filter-label">Profile:</span>
@@ -587,7 +587,7 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
             l.bindPopup(`
               <div style="font-size: 0.85rem; line-height: 1.4;">
                 <strong style="color: ${{route.color}};">${{route.label}}</strong><br>
-                <strong>Corridor:</strong> ${{route.corridor}}<br>
+                <strong>Route:</strong> ${{route.route_name}}<br>
                 <strong>Engine:</strong> ${{route.engine}} (Dotted Baseline)<br>
                 <strong>Distance:</strong> ${{route.distance_km.toFixed(1)}} km<br>
                 <strong>Ascend:</strong> ${{route.ascend_m.toFixed(0)}} m<br>
@@ -627,7 +627,7 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
             l.bindPopup(`
               <div style="font-size: 0.85rem; line-height: 1.4;">
                 <strong style="color: ${{route.color}};">${{route.label}}</strong><br>
-                <strong>Corridor:</strong> ${{route.corridor}}<br>
+                <strong>Route:</strong> ${{route.route_name}}<br>
                 <strong>Engine:</strong> ${{route.engine}} (Dashed Baseline)<br>
                 <strong>Distance:</strong> ${{route.distance_km.toFixed(1)}} km<br>
                 <strong>Ascend:</strong> ${{route.ascend_m.toFixed(0)}} m<br>
@@ -654,7 +654,7 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
             l.bindPopup(`
               <div style="font-size: 0.85rem; line-height: 1.4;">
                 <strong style="color: ${{route.color}};">${{route.label}}</strong><br>
-                <strong>Corridor:</strong> ${{route.corridor}}<br>
+                <strong>Route:</strong> ${{route.route_name}}<br>
                 <strong>Engine:</strong> ${{route.engine}} (Solid Track)<br>
                 <strong>Distance:</strong> ${{route.distance_km.toFixed(1)}} km<br>
                 <strong>Ascend:</strong> ${{route.ascend_m.toFixed(0)}} m<br>
@@ -670,7 +670,7 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
 
       const row = document.createElement('tr');
       row.className = 'route-row';
-      row.dataset.corridor = route.corridor;
+      row.dataset.routeName = route.route_name;
       row.dataset.profile = route.profile;
       row.dataset.style = route.line_style;
 
@@ -712,7 +712,7 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
 
     const allProfilesList = Array.from(new Set(routesData.map(r => r.profile))).filter(Boolean);
     const activeProfiles = new Set(allProfilesList);
-    let currentCorridor = 'all';
+    let currentRoute = 'all';
     let currentEngine = 'all';
 
     function updateVisibility(refitBounds = false) {{
@@ -721,14 +721,14 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
       let activeVisible = 0;
 
       routeRows.forEach(item => {{
-        const corridorMatch = currentCorridor === 'all' || item.route.corridor === currentCorridor;
+        const routeMatch = currentRoute === 'all' || item.route.route_name === currentRoute;
         const profileMatch = activeProfiles.has(item.route.profile);
         const engineMatch = currentEngine === 'all'
           || (currentEngine === 'brouter-rs' && item.route.line_style === 'solid')
           || (currentEngine === 'brouter' && item.route.line_style === 'dashed')
           || (currentEngine === 'bikerouter' && item.route.line_style === 'dotted');
 
-        const matchesFilter = corridorMatch && profileMatch && engineMatch;
+        const matchesFilter = routeMatch && profileMatch && engineMatch;
 
         if (!matchesFilter) {{
           item.row.style.display = 'none';
@@ -793,14 +793,14 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
       masterToggle.onchange = (e) => {{
         const targetState = e.target.checked;
         routeRows.forEach(item => {{
-          const corridorMatch = currentCorridor === 'all' || item.route.corridor === currentCorridor;
+          const routeMatch = currentRoute === 'all' || item.route.route_name === currentRoute;
           const profileMatch = activeProfiles.has(item.route.profile);
           const engineMatch = currentEngine === 'all'
             || (currentEngine === 'brouter-rs' && item.route.line_style === 'solid')
             || (currentEngine === 'brouter' && item.route.line_style === 'dashed')
             || (currentEngine === 'bikerouter' && item.route.line_style === 'dotted');
 
-          if (corridorMatch && profileMatch && engineMatch) {{
+          if (routeMatch && profileMatch && engineMatch) {{
             item.route.visible = targetState;
           }}
         }});
@@ -808,11 +808,11 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
       }};
     }}
 
-    const corridors = Array.from(new Set(routesData.map(r => r.corridor))).filter(Boolean);
-    if (corridors.length > 1) {{
-      const corridorGroup = document.getElementById('corridor-group');
-      corridorGroup.style.display = 'flex';
-      const container = document.getElementById('corridor-filters');
+    const routeNames = Array.from(new Set(routesData.map(r => r.route_name))).filter(Boolean);
+    if (routeNames.length > 1) {{
+      const routeGroup = document.getElementById('route-group');
+      routeGroup.style.display = 'flex';
+      const container = document.getElementById('route-filters');
 
       const allBtn = document.createElement('button');
       allBtn.className = 'filter-btn active';
@@ -820,19 +820,19 @@ fn generate_html(title: &str, routes: &[RouteInfo], ts_display: &str, ts_iso: &s
       allBtn.onclick = () => {{
         container.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         allBtn.classList.add('active');
-        currentCorridor = 'all';
+        currentRoute = 'all';
         updateVisibility(true);
       }};
       container.appendChild(allBtn);
 
-      corridors.forEach(c => {{
+      routeNames.forEach(c => {{
         const btn = document.createElement('button');
         btn.className = 'filter-btn';
         btn.textContent = c;
         btn.onclick = () => {{
           container.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-          currentCorridor = c;
+          currentRoute = c;
           updateVisibility(true);
         }};
         container.appendChild(btn);

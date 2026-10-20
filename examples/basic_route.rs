@@ -7,11 +7,8 @@
 
 use std::sync::Arc;
 
-use brouter_rs::dsl::lookups::LookupData;
-use brouter_rs::dsl::parser::Profile;
-use brouter_rs::graph::routing_graph::RoutingGraph;
 use brouter_rs::rd5::rd5_slice::{FileRd5SegmentReader, LazyRd5Provider};
-use brouter_rs::routing::search::AStarRouter;
+use brouter_rs::{AStarRouter, LookupData, Profile, RouteRequest, RoutingGraph, RoutingOptions};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Load the BRouter tag lookup dictionary and routing profile (.brf)
@@ -28,14 +25,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Compute the route using 2-pass guided A*
     let router = AStarRouter::new();
-    let route = router.find_multi_route_with_alternative_and_nogos_lazy(
-        &mut graph,
-        &lookups,
-        &profile,
-        &waypoints,
-        0,
-        &[],
-    )?;
+    let route = router.route(RouteRequest {
+        graph: &mut graph,
+        lookups: &lookups,
+        profile: &profile,
+        waypoints: &waypoints,
+        options: RoutingOptions {
+            alternative_idx: 0,
+            nogos: &[],
+            ..Default::default()
+        },
+    })?;
 
     println!("Route computed:");
     println!("  Distance:        {:.2} km", route.total_distance_m / 1000.0);

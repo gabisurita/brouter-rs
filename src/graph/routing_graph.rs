@@ -21,9 +21,38 @@ use crate::dsl::evaluator::ProfileEvaluator;
 use crate::dsl::lookups::LookupData;
 use crate::dsl::parser::Profile;
 use crate::rd5::micro_cache::{DecodedGeometryPoint, DecodedMicroCache, DecodedTurnRestriction};
-use crate::types::{Distance, ElevationQuarterMeters, MicroDegrees, NodeId, Point2D, Point3D};
+use crate::types::{
+    BoundingBox, Distance, ElevationQuarterMeters, MicroDegrees, NodeId, Point2D, Point3D,
+};
 
 pub const NO_DESC: u32 = u32::MAX;
+
+/// Parameters for snapping a geographic coordinate to an accessible road edge in [`RoutingGraph`].
+#[derive(Debug, Clone, Copy)]
+pub struct SnapRequest<'a> {
+    pub name: &'a str,
+    pub lon_deg: f64,
+    pub lat_deg: f64,
+    pub max_distance_m: f64,
+    pub direction_to_next: f64,
+}
+
+impl<'a> SnapRequest<'a> {
+    pub fn new(name: &'a str, lon_deg: f64, lat_deg: f64, max_distance_m: f64) -> Self {
+        Self {
+            name,
+            lon_deg,
+            lat_deg,
+            max_distance_m,
+            direction_to_next: -1.0,
+        }
+    }
+
+    pub fn with_direction(mut self, direction_to_next: f64) -> Self {
+        self.direction_to_next = direction_to_next;
+        self
+    }
+}
 
 /// Directed edge in the routing graph with polyline geometry and direct target slice links.
 #[derive(Debug, Clone)]
@@ -960,47 +989,20 @@ impl RoutingGraph {
         }
     }
 
-    /// Snaps geographic coordinates `(lon_deg, lat_deg)` to the nearest road edge,
+    /// Snaps a geographic coordinate described by [`SnapRequest`] to the nearest accessible road edge,
     /// lazily loading `1/80°` cells around the coordinate if a `CellProvider` is attached.
-    pub fn snap_waypoint_lazy(
+    pub fn snap_lazy(
         &mut self,
-        name: &str,
-        lon_deg: f64,
-        lat_deg: f64,
-        max_distance_meters: f64,
-        evaluator: &mut ProfileEvaluator,
-        lookups: &LookupData,
-    ) -> Option<MatchedWaypoint> {
-        self.snap_waypoint_with_direction_lazy(
-            name,
-            lon_deg,
-            lat_deg,
-            max_distance_meters,
-            -1.0,
-            evaluator,
-            lookups,
-        )
-    }
-
-    /// Snaps geographic coordinates `(lon_deg, lat_deg)` with direction tie-breaking,
-    /// lazily loading `1/80°` cells around the coordinate if a `CellProvider` is attached.
-    #[allow(clippy::too_many_arguments)]
-    pub fn snap_waypoint_with_direction_lazy(
-        &mut self,
-        name: &str,
-        lon_deg: f64,
-        lat_deg: f64,
-        max_distance_meters: f64,
-        direction_to_next: f64,
+        req: SnapRequest<'_>,
         evaluator: &mut ProfileEvaluator,
         lookups: &LookupData,
     ) -> Option<MatchedWaypoint> {
         if self.has_cell_provider() {
-            let wp_lon = spatial::lon_to_ilon(lon_deg);
-            let wp_lat = spatial::lat_to_ilat(lat_deg);
+            let wp_lon = spatial::lon_to_ilon(req.lon_deg);
+            let wp_lat = spatial::lat_to_ilat(req.lat_deg);
             let scales = spatial::get_lon_lat_to_meter_scales(wp_lat);
-            let max_dlon = (max_distance_meters / scales[0]).ceil() as i32 + 500;
-            let max_dlat = (max_distance_meters / scales[1]).ceil() as i32 + 500;
+            let max_dlon = (req.max_distance_m / scales[0]).ceil() as i32 + 500;
+            let max_dlat = (req.max_distance_m / scales[1]).ceil() as i32 + 500;
             let min_lon = wp_lon - max_dlon;
             let max_lon = wp_lon + max_dlon;
             let min_lat = wp_lat - max_dlat;
@@ -1020,15 +1022,7 @@ impl RoutingGraph {
             self.ensure_external_link_cells_for_grid(min_cx, max_cx, min_cy, max_cy);
         }
 
-        let res = self.snap_waypoint_with_direction(
-            name,
-            lon_deg,
-            lat_deg,
-            max_distance_meters,
-            direction_to_next,
-            evaluator,
-            lookups,
-        );
+        let res = self.snap(req, evaluator, lookups);
         if let Some(ref mwp) = res {
             if self.has_cell_provider() {
                 self.ensure_node_finalized(mwp.node1.node_id());
@@ -1036,28 +1030,6 @@ impl RoutingGraph {
             }
         }
         res
-    }
-
-    /// Snaps geographic coordinates `(lon_deg, lat_deg)` to the nearest road edge
-    /// within `max_distance_meters` that is accessible according to `evaluator`.
-    pub fn snap_waypoint(
-        &self,
-        name: &str,
-        lon_deg: f64,
-        lat_deg: f64,
-        max_distance_meters: f64,
-        evaluator: &mut ProfileEvaluator,
-        lookups: &LookupData,
-    ) -> Option<MatchedWaypoint> {
-        self.snap_waypoint_with_direction(
-            name,
-            lon_deg,
-            lat_deg,
-            max_distance_meters,
-            -1.0,
-            evaluator,
-            lookups,
-        )
     }
 
     /// Returns true if the undirected passable component containing `(s_id, t_id)` has at least `min_nodes` nodes.
@@ -1109,36 +1081,29 @@ impl RoutingGraph {
         count >= min_nodes
     }
 
-    /// Snaps geographic coordinates `(lon_deg, lat_deg)` to the nearest road edge
-    /// within `max_distance_meters` that is accessible according to `evaluator`,
-    /// using `direction_to_next` for tie-breaking and `check_start_way` when `name == "from"`.
-    #[allow(clippy::too_many_arguments)]
-    pub fn snap_waypoint_with_direction(
+    /// Snaps a geographic coordinate described by [`SnapRequest`] to the nearest accessible road edge.
+    pub fn snap(
         &self,
-        name: &str,
-        lon_deg: f64,
-        lat_deg: f64,
-        max_distance_meters: f64,
-        direction_to_next: f64,
+        req: SnapRequest<'_>,
         evaluator: &mut ProfileEvaluator,
         lookups: &LookupData,
     ) -> Option<MatchedWaypoint> {
-        let wp_lon = spatial::lon_to_ilon(lon_deg);
-        let wp_lat = spatial::lat_to_ilat(lat_deg);
+        let wp_lon = spatial::lon_to_ilon(req.lon_deg);
+        let wp_lat = spatial::lat_to_ilat(req.lat_deg);
 
         let mut mwp = MatchedWaypoint::with_direction(
-            name,
+            req.name,
             Point2D::new(wp_lon, wp_lat),
-            max_distance_meters,
-            direction_to_next,
+            req.max_distance_m,
+            req.direction_to_next,
         );
         let mut found = false;
-        let is_from = name == "from";
+        let is_from = req.name == "from";
 
         // Bounding box filter for quick rejection
         let scales = spatial::get_lon_lat_to_meter_scales(wp_lat);
-        let max_dlon = (max_distance_meters / scales[0]).ceil() as i32 + 500;
-        let max_dlat = (max_distance_meters / scales[1]).ceil() as i32 + 500;
+        let max_dlon = (req.max_distance_m / scales[0]).ceil() as i32 + 500;
+        let max_dlat = (req.max_distance_m / scales[1]).ceil() as i32 + 500;
 
         let mut min_lon = wp_lon - max_dlon;
         let mut max_lon = wp_lon + max_dlon;
@@ -1453,19 +1418,16 @@ impl RoutingGraph {
         self.is_resolved = true;
     }
 
-    /// Loads all microcaches in a bounding box of 1°x1° squares into the graph.
+    /// Loads all microcaches in a [`BoundingBox`] of 1°x1° squares into the graph.
     pub fn load_bounding_box(
         &mut self,
         tile_mgr: &mut crate::rd5::tile_manager::TileManager,
-        min_lon: f64,
-        min_lat: f64,
-        max_lon: f64,
-        max_lat: f64,
+        bbox: BoundingBox,
     ) -> std::io::Result<usize> {
-        let min_lon_deg = (min_lon + 180.0).floor() as i32;
-        let max_lon_deg = (max_lon + 180.0).floor() as i32;
-        let min_lat_deg = (min_lat + 90.0).floor() as i32;
-        let max_lat_deg = (max_lat + 90.0).floor() as i32;
+        let min_lon_deg = (bbox.min_lon + 180.0).floor() as i32;
+        let max_lon_deg = (bbox.max_lon + 180.0).floor() as i32;
+        let min_lat_deg = (bbox.min_lat + 90.0).floor() as i32;
+        let max_lat_deg = (bbox.max_lat + 90.0).floor() as i32;
 
         let mut loaded = 0;
         for lon_deg in min_lon_deg..=max_lon_deg {

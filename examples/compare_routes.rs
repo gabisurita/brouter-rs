@@ -2,20 +2,17 @@
 //! Baseline reference: `https://github.com/abrensch/brouter`
 //!
 //! Evaluates the 3 focus profiles (`fastbike`, `fastbike-lowtraffic`, `fastbike-verylowtraffic`)
-//! across UK corridors, outputs GeoJSON tracks to `target/routes/`, and prints a parity table.
+//! across UK routes, outputs GeoJSON tracks to `target/routes/`, and prints a parity table.
 
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-use brouter_rs::dsl::lookups::LookupData;
-use brouter_rs::dsl::parser::Profile;
-use brouter_rs::graph::routing_graph::RoutingGraph;
 use brouter_rs::rd5::tile_manager::TileManager;
-use brouter_rs::routing::search::AStarRouter;
-use brouter_rs::types::{Cost, Distance, Seconds};
+use brouter_rs::types::{BoundingBox, Cost, Distance, Seconds};
+use brouter_rs::{AStarRouter, LookupData, Profile, RouteRequest, RoutingGraph, RoutingOptions};
 
-struct Corridor {
+struct BenchmarkRoute {
     name: &'static str,
     title: &'static str,
     waypoints: &'static [(f64, f64)],
@@ -23,7 +20,7 @@ struct Corridor {
 
 #[derive(Debug)]
 struct ParityRow {
-    corridor: &'static str,
+    route_title: &'static str,
     profile: &'static str,
     dist_delta_pct: f64,
     time_delta_pct: f64,
@@ -59,28 +56,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loading Lookups from profiles/lookups.dat...");
     let lookups = LookupData::load_from_file("profiles/lookups.dat")?;
 
-    let corridors = [
-        Corridor {
+    let benchmark_routes = [
+        BenchmarkRoute {
             name: "clapham_hackney",
             title: "Clapham -> Hackney",
             waypoints: &[(-0.143613, 51.462414), (-0.055296, 51.544998)],
         },
-        Corridor {
+        BenchmarkRoute {
             name: "london_brighton",
             title: "London -> Brighton",
             waypoints: &[(-0.127818, 51.507392), (-0.136913, 50.822431)],
         },
-        Corridor {
+        BenchmarkRoute {
             name: "london_oxford",
             title: "London -> Oxford",
             waypoints: &[(-0.127818, 51.507392), (-1.257704, 51.751988)],
         },
-        Corridor {
+        BenchmarkRoute {
             name: "london_cardiff",
             title: "London -> Cardiff",
             waypoints: &[(-0.127818, 51.507392), (-3.179096, 51.481607)],
         },
-        Corridor {
+        BenchmarkRoute {
             name: "richmond_oxford_multi_point",
             title: "Richmond -> Windsor -> Marlow -> Oxford",
             waypoints: &[
@@ -97,22 +94,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let router = AStarRouter::new();
     let _ = fs::create_dir_all("target/routes");
 
-    let min_lon = corridors
+    let min_lon = benchmark_routes
         .iter()
         .flat_map(|c| c.waypoints.iter().map(|&(lon, _)| lon))
         .fold(f64::INFINITY, f64::min)
         .min(-3.20);
-    let max_lon = corridors
+    let max_lon = benchmark_routes
         .iter()
         .flat_map(|c| c.waypoints.iter().map(|&(lon, _)| lon))
         .fold(f64::NEG_INFINITY, f64::max)
         .max(0.05);
-    let min_lat = corridors
+    let min_lat = benchmark_routes
         .iter()
         .flat_map(|c| c.waypoints.iter().map(|&(_, lat)| lat))
         .fold(f64::INFINITY, f64::min)
         .min(50.80);
-    let max_lat = corridors
+    let max_lat = benchmark_routes
         .iter()
         .flat_map(|c| c.waypoints.iter().map(|&(_, lat)| lat))
         .fold(f64::NEG_INFINITY, f64::max)
@@ -132,14 +129,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         RoutingGraph::with_cell_provider(provider)
     } else {
         println!("\n=======================================================");
-        println!("Preloading unified regional graph for benchmark corridors...");
+        println!("Preloading unified regional graph for benchmark routes...");
         println!(
             "Bounding box: lon [{:.4}, {:.4}], lat [{:.4}, {:.4}]",
             min_lon, max_lon, min_lat, max_lat
         );
         let mut tile_mgr = TileManager::new("data/segments4");
         let mut g = RoutingGraph::with_capacities(4_500_000, 11_000_000);
-        let loaded_cells = g.load_bounding_box(&mut tile_mgr, min_lon, min_lat, max_lon, max_lat)?;
+        let bbox = BoundingBox::new(min_lon, min_lat, max_lon, max_lat);
+        let loaded_cells = g.load_bounding_box(&mut tile_mgr, bbox)?;
         let load_ms = t_load.elapsed().as_secs_f64() * 1000.0;
         println!(
             "Unified regional graph ready in {:.2} ms ({} cells, {} nodes, {} edges)",
@@ -166,11 +164,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut rows: Vec<ParityRow> = Vec::new();
 
-    for corr in &corridors {
+    for bench_route in &benchmark_routes {
         println!("\n=======================================================");
-        println!("Processing corridor: {} ({})", corr.title, corr.name);
+        println!("Processing route: {} ({})", bench_route.title, bench_route.name);
 
-        let mut corridor_rows: Vec<ParityRow> = Vec::new();
+        let mut route_rows: Vec<ParityRow> = Vec::new();
         for prof_name in &profiles {
             let prof_path = format!("profiles/{}.brf", prof_name);
             let profile = match Profile::load_from_file(&prof_path, &lookups) {
@@ -186,32 +184,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "fastbike-verylowtraffic" => "verylowtraffic",
                 other => other,
             };
-            let fixture_path = format!("fixtures/brouter_de/{}_{}.json", corr.name, fixture_name);
+            let fixture_path = format!("fixtures/brouter_de/{}_{}.json", bench_route.name, fixture_name);
             let baseline = parse_fixture_stats(Path::new(&fixture_path));
 
             let t_route = Instant::now();
             let result = if lazy_mode {
-                router.find_multi_route_with_alternative_and_nogos_lazy(
-                    &mut graph,
-                    &lookups,
-                    &profile,
-                    corr.waypoints,
-                    0,
-                    &[],
-                )
+                router.route(RouteRequest {
+                    graph: &mut graph,
+                    lookups: &lookups,
+                    profile: &profile,
+                    waypoints: bench_route.waypoints,
+                    options: RoutingOptions::default(),
+                })
             } else {
-                router.find_multi_route(
-                    &graph,
-                    &lookups,
-                    &profile,
-                    corr.waypoints,
-                )
+                router.route(RouteRequest {
+                    graph: &graph,
+                    lookups: &lookups,
+                    profile: &profile,
+                    waypoints: bench_route.waypoints,
+                    options: RoutingOptions::default(),
+                })
             };
             let elapsed_ms = t_route.elapsed().as_secs_f64() * 1000.0;
 
             match result {
                 Ok(route) => {
-                    let out_path = format!("target/routes/{}_{}.geojson", corr.name, prof_name);
+                    let out_path = format!("target/routes/{}_{}.geojson", bench_route.name, prof_name);
                     let geojson = route.to_geojson(prof_name);
                     let _ = fs::write(&out_path, geojson);
 
@@ -235,8 +233,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             graph.loaded_cell_count()
                         );
 
-                        corridor_rows.push(ParityRow {
-                            corridor: corr.title,
+                        route_rows.push(ParityRow {
+                            route_title: bench_route.title,
                             profile: prof_name,
                             dist_delta_pct: dist_delta,
                             time_delta_pct: time_delta,
@@ -261,15 +259,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        rows.extend(corridor_rows);
+        rows.extend(route_rows);
     }
 
     println!("\n=======================================================");
     println!("Processing alternative routes: London -> Brighton (fastbike-lowtraffic)");
-    let brighton_corr = corridors
+    let brighton_route = benchmark_routes
         .iter()
         .find(|c| c.name == "london_brighton")
-        .expect("london_brighton corridor not found");
+        .expect("london_brighton route not found");
     let lowtraffic_prof = Profile::load_from_file("profiles/fastbike-lowtraffic.brf", &lookups)?;
 
     for alt_idx in 1..=3 {
@@ -281,22 +279,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let t_route = Instant::now();
         let result = if lazy_mode {
-            router.find_multi_route_with_alternative_and_nogos_lazy(
-                &mut graph,
-                &lookups,
-                &lowtraffic_prof,
-                brighton_corr.waypoints,
-                alt_idx,
-                &[],
-            )
+            router.route(RouteRequest {
+                graph: &mut graph,
+                lookups: &lookups,
+                profile: &lowtraffic_prof,
+                waypoints: brighton_route.waypoints,
+                options: RoutingOptions {
+                    alternative_idx: alt_idx,
+                    ..Default::default()
+                },
+            })
         } else {
-            router.find_multi_route_with_alternative(
-                &graph,
-                &lookups,
-                &lowtraffic_prof,
-                brighton_corr.waypoints,
-                alt_idx,
-            )
+            router.route(RouteRequest {
+                graph: &graph,
+                lookups: &lookups,
+                profile: &lowtraffic_prof,
+                waypoints: brighton_route.waypoints,
+                options: RoutingOptions {
+                    alternative_idx: alt_idx,
+                    ..Default::default()
+                },
+            })
         };
         let elapsed_ms = t_route.elapsed().as_secs_f64() * 1000.0;
 
@@ -333,7 +336,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
 
                     rows.push(ParityRow {
-                        corridor: label,
+                        route_title: label,
                         profile: "fastbike-lowtraffic",
                         dist_delta_pct: dist_delta,
                         time_delta_pct: time_delta,
@@ -355,7 +358,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=======================================================");
     println!(
         "| {:<20} | {:<24} | {:>10} | {:>10} | {:>8} | {:>8} | {:>8} |",
-        "Corridor", "Profile", "Dist Delta", "Time Delta", "Cost Delta", "Ascend", "Latency"
+        "Route", "Profile", "Dist Delta", "Time Delta", "Cost Delta", "Ascend", "Latency"
     );
     println!(
         "|{:-<22}|{:-<26}|{:-<12}|{:-<12}|{:-<10}|{:-<10}|{:-<10}|",
@@ -365,7 +368,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for r in &rows {
         println!(
             "| {:<20} | {:<24} | {:>9.2}% | {:>9.2}% | {:>7.2}% | {:>4.0}/{:<3.0}m | {:>6.0}ms |",
-            r.corridor,
+            r.route_title,
             r.profile,
             r.dist_delta_pct,
             r.time_delta_pct,
@@ -386,7 +389,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut failures = Vec::new();
 
     for r in &rows {
-        let (max_dist, max_cost, max_time) = match (r.corridor, r.profile) {
+        let (max_dist, max_cost, max_time) = match (r.route_title, r.profile) {
             ("London -> Brighton (Alt 3)", "fastbike-lowtraffic") => (0.10, 0.005, 0.10),
             _ => (0.005, 0.005, 0.05),
         };
@@ -394,25 +397,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if r.dist_delta_pct > max_dist {
             failures.push(format!(
                 "{} [{}]: distance delta {:.4}% exceeds threshold {:.4}%",
-                r.corridor, r.profile, r.dist_delta_pct, max_dist
+                r.route_title, r.profile, r.dist_delta_pct, max_dist
             ));
         }
         if r.cost_delta_pct > max_cost {
             failures.push(format!(
                 "{} [{}]: cost delta {:.4}% exceeds threshold {:.4}%",
-                r.corridor, r.profile, r.cost_delta_pct, max_cost
+                r.route_title, r.profile, r.cost_delta_pct, max_cost
             ));
         }
         if r.time_delta_pct > max_time {
             failures.push(format!(
                 "{} [{}]: time delta {:.2}% exceeds threshold {:.2}%",
-                r.corridor, r.profile, r.time_delta_pct, max_time
+                r.route_title, r.profile, r.time_delta_pct, max_time
             ));
         }
         if (r.ascend_rs - r.ascend_br).abs() > 0.5 {
             failures.push(format!(
                 "{} [{}]: ascend {:.0}m != baseline {:.0}m",
-                r.corridor, r.profile, r.ascend_rs, r.ascend_br
+                r.route_title, r.profile, r.ascend_rs, r.ascend_br
             ));
         }
     }

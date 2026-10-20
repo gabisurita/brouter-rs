@@ -29,8 +29,9 @@ use brouter_rs::dsl::lookups::LookupData;
 use brouter_rs::dsl::parser::Profile;
 use brouter_rs::graph::routing_graph::RoutingGraph;
 use brouter_rs::rd5::tile_manager::TileManager;
-use brouter_rs::routing::search::{AStarRouter, RoutingOptions};
-use brouter_rs::routing::{parse_nogo_polygons, parse_nogos};
+use brouter_rs::routing::search::{AStarRouter, RouteRequest, RoutingOptions};
+use brouter_rs::routing::{parse_lonlats, parse_nogo_polygons, parse_nogos};
+use brouter_rs::types::BoundingBox;
 
 static CUSTOM_PROFILE_COUNTER: AtomicU64 = AtomicU64::new(1);
 const MAX_CUSTOM_PROFILE_LEN: usize = 100_000;
@@ -113,18 +114,15 @@ impl ServerState {
         })
     }
 
-    /// Creates a `ServerState` preloaded with a regional graph for the specified bounding box.
+    /// Creates a `ServerState` preloaded with a regional graph for the specified [`BoundingBox`].
     pub fn with_bounding_box(
         segments_dir: PathBuf,
         profiles_dir: PathBuf,
-        min_lon: f64,
-        min_lat: f64,
-        max_lon: f64,
-        max_lat: f64,
+        bbox: BoundingBox,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut tile_mgr = TileManager::new(&segments_dir);
         let mut graph = RoutingGraph::with_capacities(4_500_000, 11_000_000);
-        let _ = graph.load_bounding_box(&mut tile_mgr, min_lon, min_lat, max_lon, max_lat);
+        let _ = graph.load_bounding_box(&mut tile_mgr, bbox);
         Self::with_graph(segments_dir, profiles_dir, Arc::new(graph))
     }
 
@@ -133,7 +131,11 @@ impl ServerState {
         segments_dir: PathBuf,
         profiles_dir: PathBuf,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::with_bounding_box(segments_dir, profiles_dir, -3.50, 50.70, 0.20, 52.00)
+        Self::with_bounding_box(
+            segments_dir,
+            profiles_dir,
+            BoundingBox::new(-3.50, 50.70, 0.20, 52.00),
+        )
     }
 
     pub fn get_profile(&self, name: &str) -> Result<Arc<Profile>, String> {
@@ -278,63 +280,12 @@ async fn handle_brouter(
         }
     };
 
-    let pairs: Vec<&str> = lonlats_str
-        .split(['|', ';'])
-        .filter(|s| !s.trim().is_empty())
-        .collect();
-    if pairs.len() < 2 {
-        return (
-            StatusCode::BAD_REQUEST,
-            "At least two waypoints required in 'lonlats'",
-        )
-            .into_response();
-    }
-
-    let mut coords = Vec::with_capacity(pairs.len());
-    let mut direct_flags = vec![false; pairs.len()];
-    for (idx, pair) in pairs.iter().enumerate() {
-        let parts: Vec<&str> = pair.split(',').collect();
-        if parts.len() < 2 {
-            return (
-                StatusCode::BAD_REQUEST,
-                format!("Invalid waypoint coordinate pair: {}", pair),
-            )
-                .into_response();
-        }
-        let lon: f64 = match parts[0].trim().parse() {
-            Ok(v) => v,
-            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid longitude").into_response(),
-        };
-        let lat: f64 = match parts[1].trim().parse() {
-            Ok(v) => v,
-            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid latitude").into_response(),
-        };
-        if parts.len() > 2 && parts[2].trim().eq_ignore_ascii_case("d") {
-            direct_flags[idx] = true;
-        }
-        coords.push((lon, lat));
-    }
-
-    if let Some(ref straight_str) = params.straight {
-        for token in straight_str.split(',') {
-            if let Ok(idx) = token.trim().parse::<usize>() {
-                if idx < direct_flags.len() {
-                    direct_flags[idx] = true;
-                }
-            }
-        }
-    }
-
-    // Matches RoutingEngine.java: `boolean calcBeeline = startWp.wpttype == MatchedWaypoint.WAYPOINT_TYPE_DIRECT;`
-    let mut direct_legs = vec![false; coords.len().saturating_sub(1)];
-    for i in 0..direct_legs.len() {
-        if direct_flags[i] {
-            direct_legs[i] = true;
-        }
-    }
-    if direct_legs.len() == 1 && *direct_flags.last().unwrap_or(&false) {
-        direct_legs[0] = true;
-    }
+    let parsed_lonlats = match parse_lonlats(lonlats_str, params.straight.as_deref()) {
+        Ok(p) => p,
+        Err(msg) => return (StatusCode::BAD_REQUEST, msg).into_response(),
+    };
+    let coords = parsed_lonlats.waypoints;
+    let direct_legs = parsed_lonlats.direct_legs;
 
     let alt_idx = params.alternativeidx.unwrap_or(0);
     if alt_idx > 3 {
@@ -395,13 +346,13 @@ async fn handle_brouter(
         direct_legs: &direct_legs,
     };
 
-    match state.router.find_multi_route_with_options(
-        &state.graph,
-        &state.lookups,
-        &profile,
-        &coords,
-        &options,
-    ) {
+    match state.router.route(RouteRequest {
+        graph: &*state.graph,
+        lookups: &state.lookups,
+        profile: &profile,
+        waypoints: &coords,
+        options,
+    }) {
         Ok(route) => format_route_response(&route, profile_name, format),
         Err(e) => (StatusCode::NOT_FOUND, format!("Routing failed: {}", e)).into_response(),
     }
@@ -454,27 +405,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Profiles directory: {:?}", cli.profiles);
 
     let state = if let Some(bbox_str) = cli.preload_bbox {
-        let parts: Vec<f64> = bbox_str
-            .split(',')
-            .filter_map(|s| s.trim().parse::<f64>().ok())
-            .collect();
-        if parts.len() != 4 {
-            eprintln!("Invalid --preload-bbox format, expected min_lon,min_lat,max_lon,max_lat");
-            std::process::exit(1);
-        }
+        let bbox: BoundingBox = match bbox_str.parse() {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("Invalid --preload-bbox format: {e}");
+                std::process::exit(1);
+            }
+        };
         println!(
             "Preloading regional graph for bbox: lon [{:.2}, {:.2}], lat [{:.2}, {:.2}]...",
-            parts[0], parts[2], parts[1], parts[3]
+            bbox.min_lon, bbox.max_lon, bbox.min_lat, bbox.max_lat
         );
         let t0 = std::time::Instant::now();
-        let state = ServerState::with_bounding_box(
-            cli.segments,
-            cli.profiles,
-            parts[0],
-            parts[1],
-            parts[2],
-            parts[3],
-        )?;
+        let state = ServerState::with_bounding_box(cli.segments, cli.profiles, bbox)?;
         println!(
             "Graph preloaded in {:.2} ms",
             t0.elapsed().as_secs_f64() * 1000.0

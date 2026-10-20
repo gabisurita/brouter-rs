@@ -182,14 +182,8 @@ fn test_real_rd5_graph_loading_and_snapping() {
     let mut evaluator =
         brouter_rs::dsl::evaluator::ProfileEvaluator::new(&profile, &lookups.way, &lookups.node);
 
-    let snap_res = graph.snap_waypoint(
-        "query_point",
-        query_lon,
-        query_lat,
-        200.0,
-        &mut evaluator,
-        &lookups,
-    );
+    let snap_req = brouter_rs::SnapRequest::new("query_point", query_lon, query_lat, 200.0);
+    let snap_res = graph.snap(snap_req, &mut evaluator, &lookups);
     assert!(
         snap_res.is_some(),
         "Should find a snap candidate near real graph node"
@@ -219,14 +213,7 @@ fn test_real_rd5_graph_loading_and_snapping() {
         &lookups.way,
         &lookups.node,
     );
-    let snap_forbidden = graph.snap_waypoint(
-        "query_point",
-        query_lon,
-        query_lat,
-        200.0,
-        &mut forbidden_evaluator,
-        &lookups,
-    );
+    let snap_forbidden = graph.snap(snap_req, &mut forbidden_evaluator, &lookups);
     assert!(
         snap_forbidden.is_none(),
         "Forbidden road (costfactor >= 9999) must not be snapped to"
@@ -244,14 +231,7 @@ fn test_real_rd5_graph_loading_and_snapping() {
         &lookups.way,
         &lookups.node,
     );
-    let snap_allowed = graph.snap_waypoint(
-        "query_point",
-        query_lon,
-        query_lat,
-        200.0,
-        &mut allowed_evaluator,
-        &lookups,
-    );
+    let snap_allowed = graph.snap(snap_req, &mut allowed_evaluator, &lookups);
     assert!(
         snap_allowed.is_some(),
         "Allowed road (costfactor < 9999) should be snapped to"

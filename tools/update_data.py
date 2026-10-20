@@ -21,7 +21,7 @@ DEFAULT_SEGMENTS = ["E0_N50", "W5_N50"]
 SEGMENTS_URL = "https://brouter.de/brouter/segments4"
 ROUTING_URL = "https://brouter.de/brouter"
 
-CORRIDORS = {
+ROUTES = {
     "clapham_hackney": "-0.143613,51.462414|-0.055296,51.544998",
     "london_brighton": "-0.127818,51.507392|-0.136913,50.822431",
     "london_oxford": "-0.127818,51.507392|-1.257704,51.751988",
@@ -116,8 +116,8 @@ def update_fixtures():
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Updating {len(FIXTURES)} fixture(s) in {FIXTURES_DIR}...")
 
-    for filename, corridor, profile, alt in FIXTURES:
-        lonlats = CORRIDORS[corridor]
+    for filename, route_key, profile, alt in FIXTURES:
+        lonlats = ROUTES[route_key]
         url = f"{ROUTING_URL}?lonlats={lonlats}&profile={profile}&format=geojson"
         if alt is not None:
             url += f"&alternativeidx={alt}"

@@ -6,7 +6,7 @@
 //!
 //! # Summary
 //! Manages open `.rd5` physical files in a segment directory, computes tile coordinates,
-//! and loads/decodes 1°×1° squares and MicroCache cells with LRU square and corridor caching.
+//! and loads/decodes 1°×1° squares and MicroCache cells with LRU square and route caching.
 
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
