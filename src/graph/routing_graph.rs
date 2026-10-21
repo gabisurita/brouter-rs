@@ -13,7 +13,7 @@ use std::sync::{Arc, RwLock};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
-use super::fast_map::FastHashMap;
+use super::fast_map::{FastHashMap, FastHashSet};
 use super::matcher::{MatchedWaypoint, WaypointMatcher};
 use super::node::{make_node_id, OsmNode};
 use super::spatial;
@@ -22,7 +22,7 @@ use crate::dsl::lookups::LookupData;
 use crate::dsl::parser::Profile;
 use crate::rd5::micro_cache::{DecodedGeometryPoint, DecodedMicroCache, DecodedTurnRestriction};
 use crate::types::{
-    BoundingBox, Distance, ElevationQuarterMeters, MicroDegrees, NodeId, Point2D, Point3D,
+    BoundingBox, ElevationQuarterMeters, MicroDegrees, NodeId, Point2D, Point3D,
 };
 
 pub const NO_DESC: u32 = u32::MAX;
@@ -55,9 +55,8 @@ impl<'a> SnapRequest<'a> {
 }
 
 /// Directed edge in the routing graph with polyline geometry and direct target slice links.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct GraphEdge {
-    pub source_id: NodeId,
     pub target_id: NodeId,
     pub target_lon: MicroDegrees,
     pub target_lat: MicroDegrees,
@@ -65,18 +64,35 @@ pub struct GraphEdge {
     pub target_node_desc_id: u32,
     pub edge_idx: u32,
     pub rev_edge_idx: u32,
+    pub target_edges_start: u32,
+    pub straight_dist: f32,
+    pub geom_start: u32,
+    pub geom_len: u16,
+    pub target_edges_count: u16,
     pub target_selev: ElevationQuarterMeters,
     pub is_reverse: bool,
-    pub has_node_desc: bool,
     pub has_target_tr: bool,
     pub is_target_dead_end: bool,
-    pub target_edges_start: u32,
-    pub target_edges_count: u16,
-    pub straight_dist: Distance,
-    pub geometry: Vec<DecodedGeometryPoint>,
 }
 
 impl GraphEdge {
+    /// Returns true if the edge has no intermediate geometry points.
+    #[inline(always)]
+    pub fn is_geometry_empty(&self) -> bool {
+        self.geom_len == 0
+    }
+
+    /// Returns the intermediate geometry points slice from the graph pool.
+    #[inline(always)]
+    pub fn geometry<'a>(&self, graph: &'a RoutingGraph) -> &'a [DecodedGeometryPoint] {
+        if self.geom_len == 0 {
+            &[]
+        } else {
+            let start = self.geom_start as usize;
+            &graph.geometry_pool[start..start + self.geom_len as usize]
+        }
+    }
+
     /// Returns the raw description bytes from the graph if present.
     #[inline]
     pub fn description<'a>(&self, graph: &'a RoutingGraph) -> Option<&'a [u8]> {
@@ -93,21 +109,23 @@ impl GraphEdge {
     /// Fills an existing polyline buffer (source, intermediates, target) without allocating.
     pub fn fill_polyline(
         &self,
+        graph: &RoutingGraph,
         pts: &mut Vec<Point3D>,
         s_lon: i32,
         s_lat: i32,
         s_elev: i16,
         t_elev: i16,
     ) {
+        let geom = self.geometry(graph);
         pts.clear();
-        pts.reserve(self.geometry.len() + 2);
+        pts.reserve(geom.len() + 2);
         pts.push(Point3D::new(s_lon, s_lat, s_elev));
 
         if !self.is_reverse {
             let mut olon = s_lon;
             let mut olat = s_lat;
             let mut oelev = s_elev;
-            for gp in &self.geometry {
+            for gp in geom {
                 olon += gp.dlon;
                 olat += gp.dlat;
                 oelev = oelev.wrapping_add(gp.delev as i16);
@@ -118,7 +136,7 @@ impl GraphEdge {
             let mut olat = self.target_lat;
             let mut oelev = t_elev;
             let start_rev = pts.len();
-            for gp in &self.geometry {
+            for gp in geom {
                 olon += gp.dlon;
                 olat += gp.dlat;
                 oelev = oelev.wrapping_add(gp.delev as i16);
@@ -134,13 +152,14 @@ impl GraphEdge {
     /// in forward traversal order (source to target).
     pub fn polyline(
         &self,
+        graph: &RoutingGraph,
         s_lon: i32,
         s_lat: i32,
         s_elev: i16,
         t_elev: i16,
     ) -> Vec<Point3D> {
-        let mut pts = Vec::with_capacity(self.geometry.len() + 2);
-        self.fill_polyline(&mut pts, s_lon, s_lat, s_elev, t_elev);
+        let mut pts = Vec::with_capacity(self.geom_len as usize + 2);
+        self.fill_polyline(graph, &mut pts, s_lon, s_lat, s_elev, t_elev);
         pts
     }
 }
@@ -185,6 +204,7 @@ pub struct RoutingGraph {
     pub nodes: FastHashMap<u64, OsmNode>,
     pub edges: FastHashMap<u64, Vec<GraphEdge>>,
     pub flat_edges: Vec<GraphEdge>,
+    pub geometry_pool: Vec<DecodedGeometryPoint>,
     pub node_edge_offsets: FastHashMap<u64, (u32, u16)>,
     pub turn_restrictions: FastHashMap<u64, Vec<DecodedTurnRestriction>>,
     pub profile_cost_cache: Arc<RwLock<FastHashMap<u64, Arc<ProfileCostTable>>>>,
@@ -200,6 +220,8 @@ pub struct RoutingGraph {
     pub cell_provider: CellProviderHandle,
     pub loaded_cells: FastHashMap<(i32, i32), bool>,
     pub cell_divisors: FastHashMap<(i32, i32), i32>,
+    pub non_empty_loaded_cells: usize,
+    pub track_spatial_grid: bool,
 }
 
 pub const GRID_CELL_SIZE: i32 = 10_000;
@@ -211,6 +233,7 @@ impl RoutingGraph {
             nodes: FastHashMap::default(),
             edges: FastHashMap::default(),
             flat_edges: Vec::new(),
+            geometry_pool: Vec::new(),
             node_edge_offsets: FastHashMap::default(),
             turn_restrictions: FastHashMap::default(),
             profile_cost_cache: Arc::new(RwLock::new(FastHashMap::default())),
@@ -226,6 +249,8 @@ impl RoutingGraph {
             cell_provider: CellProviderHandle(None),
             loaded_cells: FastHashMap::default(),
             cell_divisors: FastHashMap::default(),
+            non_empty_loaded_cells: 0,
+            track_spatial_grid: false,
         }
     }
 
@@ -244,18 +269,35 @@ impl RoutingGraph {
         self.cell_provider.0.is_some()
     }
 
-    /// Clears all graph nodes, edges, and cached cells while preserving the attached `CellProvider`.
-    pub fn clear_graph_data(&mut self) {
+    /// Clears transient graph topology (nodes, edges, geometry pool, spatial grid, and loaded-cell tracking).
+    fn clear_topology(&mut self) {
         self.nodes.clear();
         self.nodes.shrink_to_fit();
         self.edges.clear();
         self.edges.shrink_to_fit();
         self.flat_edges.clear();
         self.flat_edges.shrink_to_fit();
+        self.geometry_pool.clear();
+        self.geometry_pool.shrink_to_fit();
         self.node_edge_offsets.clear();
         self.node_edge_offsets.shrink_to_fit();
         self.turn_restrictions.clear();
         self.turn_restrictions.shrink_to_fit();
+        self.spatial_grid.clear();
+        self.spatial_grid.shrink_to_fit();
+        self.dead_end_parents.clear();
+        self.dead_end_parents.shrink_to_fit();
+        self.loaded_cells.clear();
+        self.loaded_cells.shrink_to_fit();
+        self.non_empty_loaded_cells = 0;
+        self.track_spatial_grid = false;
+        self.total_edges = 0;
+        self.is_resolved = false;
+    }
+
+    /// Clears all graph nodes, edges, interned descriptions, and cached cells while preserving the attached `CellProvider`.
+    pub fn clear_graph_data(&mut self) {
+        self.clear_topology();
         if let Ok(mut cache) = self.profile_cost_cache.write() {
             cache.clear();
         }
@@ -268,21 +310,130 @@ impl RoutingGraph {
         self.node_descriptions.shrink_to_fit();
         self.node_desc_to_id.clear();
         self.node_desc_to_id.shrink_to_fit();
-        self.spatial_grid.clear();
-        self.spatial_grid.shrink_to_fit();
-        self.is_resolved = false;
-        self.total_edges = 0;
-        self.dead_end_parents.clear();
-        self.dead_end_parents.shrink_to_fit();
-        self.loaded_cells.clear();
-        self.loaded_cells.shrink_to_fit();
         self.cell_divisors.clear();
         self.cell_divisors.shrink_to_fit();
     }
 
     /// Returns the number of non-empty `1/80°` cells currently loaded in the graph.
+    #[inline(always)]
     pub fn loaded_cell_count(&self) -> usize {
-        self.loaded_cells.values().filter(|&&v| v).count()
+        self.non_empty_loaded_cells
+    }
+
+    /// Resets transient graph topology between search passes while keeping interned way/node descriptions
+    /// and cached profile cost evaluations, then finalizes the snapped waypoint endpoint nodes.
+    pub fn reset_for_pass(&mut self, endpoint_ids: [u64; 4]) {
+        if !self.has_cell_provider() {
+            return;
+        }
+        self.clear_topology();
+        for id in endpoint_ids {
+            if id != 0 {
+                self.ensure_node_finalized(id);
+            }
+        }
+    }
+
+    /// Compacts the in-memory graph in-place to retain only `keep_nodes` and `frontier_cells`.
+    ///
+    /// Logical `edge.edge_idx` and `edge.rev_edge_idx` identifiers are preserved across compactions
+    /// while physical slices in `flat_edges` and `geometry_pool` are packed in-place and shrunk.
+    pub fn compact_live_nodes(
+        &mut self,
+        keep_nodes: &mut FastHashSet<u64>,
+        frontier_cells: &FastHashSet<(i32, i32)>,
+    ) {
+        fn retain_and_shrink<K: Eq + std::hash::Hash, V>(
+            map: &mut FastHashMap<K, V>,
+            min_cap: usize,
+            pred: impl FnMut(&K, &mut V) -> bool,
+        ) {
+            map.retain(pred);
+            if map.capacity() > (map.len() * 2).max(min_cap) {
+                map.shrink_to((map.len() * 3 / 2).max(min_cap));
+            }
+        }
+
+        self.spatial_grid.clear();
+        self.spatial_grid.shrink_to_fit();
+
+        retain_and_shrink(&mut self.edges, 4096, |k, _| keep_nodes.contains(k));
+        for edges_vec in self.edges.values() {
+            for e in edges_vec {
+                keep_nodes.insert(e.target_id);
+            }
+        }
+
+        retain_and_shrink(&mut self.node_edge_offsets, 4096, |k, _| keep_nodes.contains(k));
+
+        let mut kept_slices: Vec<(u64, u32, u16)> = self
+            .node_edge_offsets
+            .iter()
+            .filter(|&(_, &(_, count))| count > 0)
+            .map(|(&s_id, &(start, count))| (s_id, start, count))
+            .collect();
+        kept_slices.sort_unstable_by_key(|&(_, start, _)| start);
+
+        let mut write_pos = 0usize;
+        for (s_id, old_start, count) in kept_slices {
+            let new_start = write_pos as u32;
+            let c = count as usize;
+            if write_pos != old_start as usize {
+                self.flat_edges
+                    .copy_within(old_start as usize..old_start as usize + c, write_pos);
+            }
+            if let Some(slot) = self.node_edge_offsets.get_mut(&s_id) {
+                *slot = (new_start, count);
+            }
+            write_pos += c;
+        }
+        self.flat_edges.truncate(write_pos);
+        if self.flat_edges.capacity() > (write_pos * 2).max(16_384) {
+            self.flat_edges.shrink_to((write_pos * 3 / 2).max(16_384));
+        }
+
+        for e in &mut self.flat_edges {
+            let (t_start, t_count) = self
+                .node_edge_offsets
+                .get(&e.target_id)
+                .copied()
+                .unwrap_or((u32::MAX, 0));
+            e.target_edges_start = t_start;
+            e.target_edges_count = t_count;
+        }
+
+        let total_geom: usize = self
+            .flat_edges
+            .iter()
+            .chain(self.edges.values().flatten())
+            .map(|e| e.geom_len as usize)
+            .sum();
+        let mut new_geom = Vec::with_capacity(total_geom);
+        let old_pool = &self.geometry_pool;
+        let mut relocate_geom = |e: &mut GraphEdge| {
+            if e.geom_len > 0 {
+                let start = e.geom_start as usize;
+                e.geom_start = new_geom.len() as u32;
+                new_geom.extend_from_slice(&old_pool[start..start + e.geom_len as usize]);
+            } else {
+                e.geom_start = 0;
+            }
+        };
+        for e in &mut self.flat_edges {
+            relocate_geom(e);
+        }
+        for e in self.edges.values_mut().flatten() {
+            relocate_geom(e);
+        }
+        self.geometry_pool = new_geom;
+
+        retain_and_shrink(&mut self.nodes, 4096, |k, _| keep_nodes.contains(k));
+        retain_and_shrink(&mut self.turn_restrictions, 256, |k, _| keep_nodes.contains(k));
+        retain_and_shrink(&mut self.dead_end_parents, 1024, |k, _| keep_nodes.contains(k));
+        retain_and_shrink(&mut self.loaded_cells, 512, |cell, &mut non_empty| {
+            !non_empty || frontier_cells.contains(cell)
+        });
+        self.non_empty_loaded_cells = self.loaded_cells.values().filter(|&&v| v).count();
     }
 
     pub fn with_capacities(node_cap: usize, edge_cap: usize) -> Self {
@@ -291,20 +442,7 @@ impl RoutingGraph {
             edges: FastHashMap::with_capacity_and_hasher(edge_cap, Default::default()),
             flat_edges: Vec::with_capacity(edge_cap),
             node_edge_offsets: FastHashMap::with_capacity_and_hasher(node_cap, Default::default()),
-            turn_restrictions: FastHashMap::default(),
-            profile_cost_cache: Arc::new(RwLock::new(FastHashMap::default())),
-            elevation_types: FastHashMap::default(),
-            descriptions: Vec::new(),
-            desc_to_id: FastHashMap::default(),
-            node_descriptions: Vec::new(),
-            node_desc_to_id: FastHashMap::default(),
-            spatial_grid: FastHashMap::default(),
-            is_resolved: false,
-            total_edges: 0,
-            dead_end_parents: FastHashMap::default(),
-            cell_provider: CellProviderHandle(None),
-            loaded_cells: FastHashMap::default(),
-            cell_divisors: FastHashMap::default(),
+            ..Self::new()
         }
     }
 
@@ -526,8 +664,9 @@ impl RoutingGraph {
                     && e.is_reverse == edge.is_reverse
                     && (e.desc_id == edge.desc_id || e.desc_id == NO_DESC || edge.desc_id == NO_DESC)
             }) {
-                if existing.geometry.is_empty() && !edge.geometry.is_empty() {
-                    existing.geometry = edge.geometry;
+                if existing.geom_len == 0 && edge.geom_len > 0 {
+                    existing.geom_start = edge.geom_start;
+                    existing.geom_len = edge.geom_len;
                     existing.straight_dist = 0.0;
                 }
                 if existing.desc_id == NO_DESC && edge.desc_id != NO_DESC {
@@ -535,9 +674,6 @@ impl RoutingGraph {
                 }
                 if existing.target_selev == i16::MIN && edge.target_selev != i16::MIN {
                     existing.target_selev = edge.target_selev;
-                }
-                if !existing.has_node_desc && edge.has_node_desc {
-                    existing.has_node_desc = true;
                 }
                 if existing.target_node_desc_id == NO_DESC && edge.target_node_desc_id != NO_DESC {
                     existing.target_node_desc_id = edge.target_node_desc_id;
@@ -548,23 +684,24 @@ impl RoutingGraph {
             }
             return;
         }
-        let edge_list = self.edges.entry(s_id).or_default();
+        let edge_list = self
+            .edges
+            .entry(s_id)
+            .or_insert_with(|| Vec::with_capacity(2));
         if let Some(existing) = edge_list.iter_mut().find(|e| {
             e.target_id == edge.target_id
                 && e.is_reverse == edge.is_reverse
                 && (e.desc_id == edge.desc_id || e.desc_id == NO_DESC || edge.desc_id == NO_DESC)
         }) {
-            if existing.geometry.is_empty() && !edge.geometry.is_empty() {
-                existing.geometry = edge.geometry;
+            if existing.geom_len == 0 && edge.geom_len > 0 {
+                existing.geom_start = edge.geom_start;
+                existing.geom_len = edge.geom_len;
             }
             if existing.desc_id == NO_DESC && edge.desc_id != NO_DESC {
                 existing.desc_id = edge.desc_id;
             }
             if existing.target_selev == i16::MIN && edge.target_selev != i16::MIN {
                 existing.target_selev = edge.target_selev;
-            }
-            if !existing.has_node_desc && edge.has_node_desc {
-                existing.has_node_desc = true;
             }
             if existing.target_node_desc_id == NO_DESC && edge.target_node_desc_id != NO_DESC {
                 existing.target_node_desc_id = edge.target_node_desc_id;
@@ -579,28 +716,27 @@ impl RoutingGraph {
 
     /// Incorporates a borrowed decoded MicroCache cell into the graph.
     pub fn add_micro_cache_ref(&mut self, cache: &DecodedMicroCache) {
-        let track_grid = self.has_cell_provider();
+        let track_grid = self.track_spatial_grid;
         for node in &cache.nodes {
             let s_id = make_node_id(node.ilon, node.ilat);
             let s_lon = node.ilon;
             let s_lat = node.ilat;
             let s_elev = node.selev;
 
-            let trs: Vec<DecodedTurnRestriction> = node.turn_restrictions.clone();
-            let s_has_tr = !trs.is_empty();
+            let s_has_tr = !node.turn_restrictions.is_empty();
             if s_has_tr {
-                self.turn_restrictions.insert(s_id, trs.clone());
+                self.turn_restrictions
+                    .insert(s_id, node.turn_restrictions.clone());
             }
             let n_desc_slice = node.node_tags.as_ref().map(|t| t.data.as_slice());
-            let has_n_desc = n_desc_slice.is_some();
             let s_node_desc_id = self.get_or_intern_node_description(n_desc_slice);
 
             let osm_node = OsmNode {
                 ilon: s_lon,
                 ilat: s_lat,
-                selev: s_elev,
                 node_desc_id: s_node_desc_id,
-                turn_restrictions: trs,
+                selev: s_elev,
+                has_tr: s_has_tr,
             };
             self.nodes.insert(s_id, osm_node);
 
@@ -617,7 +753,7 @@ impl RoutingGraph {
                 let (t_selev, t_node_desc_id, t_has_tr) = self
                     .nodes
                     .get(&t_id)
-                    .map(|n| (n.selev, n.node_desc_id, !n.turn_restrictions.is_empty()))
+                    .map(|n| (n.selev, n.node_desc_id, n.has_tr))
                     .unwrap_or((i16::MIN, NO_DESC, false));
 
                 self.nodes
@@ -627,14 +763,21 @@ impl RoutingGraph {
                 let desc_id = self
                     .get_or_intern_description(link.way_tags.as_ref().map(|t| t.data.as_slice()));
 
+                let (geom_start, geom_len) = if link.geometry.is_empty() {
+                    (0, 0)
+                } else {
+                    let start = self.geometry_pool.len() as u32;
+                    let len = link.geometry.len() as u16;
+                    self.geometry_pool.extend_from_slice(&link.geometry);
+                    (start, len)
+                };
+
                 let edge_fwd = GraphEdge {
-                    source_id: s_id,
                     target_id: t_id,
                     target_lon: link.target_lon,
                     target_lat: link.target_lat,
                     is_reverse: link.is_reverse,
                     target_selev: t_selev,
-                    has_node_desc: t_node_desc_id != NO_DESC,
                     has_target_tr: t_has_tr,
                     is_target_dead_end: false,
                     target_edges_start: u32::MAX,
@@ -644,18 +787,17 @@ impl RoutingGraph {
                     edge_idx: 0,
                     rev_edge_idx: u32::MAX,
                     straight_dist: 0.0,
-                    geometry: link.geometry.clone(),
+                    geom_start,
+                    geom_len,
                 };
                 self.insert_or_update_edge(s_id, edge_fwd);
 
                 let edge_rev = GraphEdge {
-                    source_id: t_id,
                     target_id: s_id,
                     target_lon: s_lon,
                     target_lat: s_lat,
                     is_reverse: !link.is_reverse,
                     target_selev: s_elev,
-                    has_node_desc: has_n_desc,
                     has_target_tr: s_has_tr,
                     is_target_dead_end: false,
                     target_edges_start: u32::MAX,
@@ -665,7 +807,8 @@ impl RoutingGraph {
                     edge_idx: 0,
                     rev_edge_idx: u32::MAX,
                     straight_dist: 0.0,
-                    geometry: link.geometry.clone(),
+                    geom_start,
+                    geom_len,
                 };
                 self.insert_or_update_edge(t_id, edge_rev);
             }
@@ -677,22 +820,27 @@ impl RoutingGraph {
         self.add_micro_cache_ref(&cache);
     }
 
+    /// Returns the `(lon_idx, lat_idx)` cell coordinates for microdegree coordinate `(ilon, ilat)` if the parent square's divisor is known.
+    #[inline]
+    pub fn cell_coords_at_microdeg(&self, ilon: i32, ilat: i32) -> Option<(i32, i32)> {
+        let lon_deg = ilon.div_euclid(1_000_000);
+        let lat_deg = ilat.div_euclid(1_000_000);
+        let &divisor = self.cell_divisors.get(&(lon_deg, lat_deg))?;
+        if divisor <= 0 {
+            return None;
+        }
+        let cell_size = 1_000_000 / divisor;
+        Some((ilon.div_euclid(cell_size), ilat.div_euclid(cell_size)))
+    }
+
     /// Returns true if the `MicroCache` cell containing `(ilon, ilat)` has been checked/loaded
     /// (i.e. its parent `.rd5` segment was available).
     #[inline]
-    fn is_cell_checked_at_microdeg(&self, ilon: i32, ilat: i32) -> bool {
-        let lon_deg = ilon.div_euclid(1_000_000);
-        let lat_deg = ilat.div_euclid(1_000_000);
-        let Some(&divisor) = self.cell_divisors.get(&(lon_deg, lat_deg)) else {
+    pub fn is_cell_checked_at_microdeg(&self, ilon: i32, ilat: i32) -> bool {
+        let Some(cell) = self.cell_coords_at_microdeg(ilon, ilat) else {
             return false;
         };
-        if divisor <= 0 {
-            return false;
-        }
-        let cell_size = 1_000_000 / divisor;
-        let lon_idx = ilon.div_euclid(cell_size);
-        let lat_idx = ilat.div_euclid(cell_size);
-        self.loaded_cells.contains_key(&(lon_idx, lat_idx))
+        self.loaded_cells.contains_key(&cell)
     }
 
     /// Lazily loads the `MicroCache` cell containing microdegree coordinate `(ilon, ilat)` if not already attempted.
@@ -729,6 +877,7 @@ impl RoutingGraph {
             Ok(Some((cache, elev_type))) => {
                 self.elevation_types.insert((lon_deg, lat_deg), elev_type);
                 self.loaded_cells.insert((lon_idx, lat_idx), true);
+                self.non_empty_loaded_cells += 1;
                 self.add_micro_cache_ref(&cache);
                 true
             }
@@ -754,6 +903,17 @@ impl RoutingGraph {
         if !self.has_cell_provider() {
             return;
         }
+        if self.spatial_grid.is_empty() && !self.nodes.is_empty() {
+            for &s_id in self.nodes.keys() {
+                let s_pos = super::node::unpack_node_id(s_id);
+                let cell = (
+                    s_pos.lon.div_euclid(GRID_CELL_SIZE),
+                    s_pos.lat.div_euclid(GRID_CELL_SIZE),
+                );
+                self.spatial_grid.entry(cell).or_default().push(s_id);
+            }
+        }
+        self.track_spatial_grid = true;
         let mut y = min_ilat;
         while y <= max_ilat + MICRO_CACHE_CELL_SIZE {
             let cy = y.min(max_ilat);
@@ -771,6 +931,7 @@ impl RoutingGraph {
             }
             y += MICRO_CACHE_CELL_SIZE;
         }
+        self.track_spatial_grid = false;
     }
 
     /// Ensures that for all candidate nodes in the spatial grid range `[min_cx..=max_cx, min_cy..=max_cy]`,
@@ -794,7 +955,7 @@ impl RoutingGraph {
                     for &s_id in nodes {
                         if let Some(edges) = self.edges.get(&s_id) {
                             for e in edges {
-                                if e.is_reverse && e.geometry.is_empty() {
+                                if e.is_reverse && e.is_geometry_empty() {
                                     target_coords.push((e.target_lon, e.target_lat));
                                 }
                             }
@@ -803,6 +964,7 @@ impl RoutingGraph {
                 }
             }
         }
+        self.track_spatial_grid = true;
         let mut last_cell = (i32::MIN, i32::MIN);
         for (t_ilon, t_ilat) in target_coords {
             let cell = (t_ilon.div_euclid(CELL_GCD), t_ilat.div_euclid(CELL_GCD));
@@ -811,6 +973,7 @@ impl RoutingGraph {
                 self.ensure_cell_at_microdeg(t_ilon, t_ilat);
             }
         }
+        self.track_spatial_grid = false;
     }
 
     /// Ensures that node `s_id` has its own cell and all neighbor cells loaded, and that its
@@ -881,24 +1044,27 @@ impl RoutingGraph {
 
         let start = self.flat_edges.len() as u32;
         let count = edges.len() as u16;
+        let base_edge_idx = self.total_edges as u32;
+        self.total_edges += edges.len();
         self.node_edge_offsets.insert(s_id, (start, count));
 
         for (e_i, mut edge) in edges.into_iter().enumerate() {
-            let edge_idx = start + e_i as u32;
+            let edge_idx = base_edge_idx + e_i as u32;
             edge.edge_idx = edge_idx;
             if let Some(target_node) = self.nodes.get(&edge.target_id) {
                 if edge.target_selev == i16::MIN && target_node.selev != i16::MIN {
                     edge.target_selev = target_node.selev;
                 }
-                edge.has_node_desc = target_node.node_desc_id != NO_DESC;
                 edge.target_node_desc_id = target_node.node_desc_id;
-                edge.has_target_tr = !target_node.turn_restrictions.is_empty();
+                edge.has_target_tr = target_node.has_tr;
             }
-            if edge.geometry.is_empty() {
-                edge.straight_dist =
-                    spatial::distance(s_pos, Point2D::new(edge.target_lon, edge.target_lat))
-                        .round()
-                        .max(1.0);
+            if edge.is_geometry_empty() {
+                edge.straight_dist = spatial::distance(
+                    s_pos,
+                    Point2D::new(edge.target_lon, edge.target_lat),
+                )
+                .round()
+                .max(1.0) as f32;
             }
             let target_cell_checked =
                 self.is_cell_checked_at_microdeg(edge.target_lon, edge.target_lat);
@@ -961,7 +1127,7 @@ impl RoutingGraph {
                     }
                 }
                 if let Some(rev_idx) = exact_rev.or(fallback_rev) {
-                    edge.rev_edge_idx = rev_idx as u32;
+                    edge.rev_edge_idx = self.flat_edges[rev_idx].edge_idx;
                     if self.flat_edges[rev_idx].rev_edge_idx == u32::MAX {
                         self.flat_edges[rev_idx].rev_edge_idx = edge_idx;
                     }
@@ -969,7 +1135,6 @@ impl RoutingGraph {
             }
             self.flat_edges.push(edge);
         }
-        self.total_edges = self.flat_edges.len();
         self.is_resolved = true;
         (start, count)
     }
@@ -1164,7 +1329,7 @@ impl RoutingGraph {
                 let edge_min_lat = s_ilat.min(edge.target_lat);
                 let edge_max_lat = s_ilat.max(edge.target_lat);
 
-                let margin = if edge.geometry.is_empty() { 0 } else { 10000 };
+                let margin = if edge.is_geometry_empty() { 0 } else { 10000 };
                 if edge_max_lon + margin < min_lon
                     || edge_min_lon - margin > max_lon
                     || edge_max_lat + margin < min_lat
@@ -1187,6 +1352,7 @@ impl RoutingGraph {
                 };
 
                 edge.fill_polyline(
+                    self,
                     &mut poly,
                     source_node.ilon,
                     source_node.ilat,
@@ -1351,15 +1517,16 @@ impl RoutingGraph {
                     if edge.target_selev == i16::MIN && target_node.selev != i16::MIN {
                         edge.target_selev = target_node.selev;
                     }
-                    edge.has_node_desc = target_node.node_desc_id != NO_DESC;
                     edge.target_node_desc_id = target_node.node_desc_id;
-                    edge.has_target_tr = !target_node.turn_restrictions.is_empty();
+                    edge.has_target_tr = target_node.has_tr;
                 }
-                if edge.geometry.is_empty() {
-                    edge.straight_dist =
-                        spatial::distance(s_pos, Point2D::new(edge.target_lon, edge.target_lat))
-                            .round()
-                            .max(1.0);
+                if edge.is_geometry_empty() {
+                    edge.straight_dist = spatial::distance(
+                        s_pos,
+                        Point2D::new(edge.target_lon, edge.target_lat),
+                    )
+                    .round()
+                    .max(1.0) as f32;
                 }
                 let is_dead = match dead_end_parents.get(&edge.target_id) {
                     Some(&parent) => parent == s_id,
@@ -1382,31 +1549,33 @@ impl RoutingGraph {
         self.total_edges = flat_edges.len();
 
         // Resolve bidirectional counterlink indices and target edge slice offsets
-        for i in 0..flat_edges.len() {
-            let target_id = flat_edges[i].target_id;
-            let source_id = flat_edges[i].source_id;
-            let desc_id = flat_edges[i].desc_id;
-            let is_rev = flat_edges[i].is_reverse;
-            if let Some(&(t_start, t_count)) = node_edge_offsets.get(&target_id) {
-                flat_edges[i].target_edges_start = t_start;
-                flat_edges[i].target_edges_count = t_count;
-                let t_end = t_start as usize + t_count as usize;
-                let mut matched_rev = u32::MAX;
-                for rev_idx in (t_start as usize)..t_end {
-                    let rev_edge = &flat_edges[rev_idx];
-                    if rev_edge.target_id == source_id {
-                        if rev_edge.desc_id == desc_id && rev_edge.is_reverse != is_rev {
-                            matched_rev = rev_idx as u32;
-                            break;
-                        } else if matched_rev == u32::MAX {
-                            matched_rev = rev_idx as u32;
+        for (&source_id, &(s_start, s_count)) in &node_edge_offsets {
+            let s_end = s_start as usize + s_count as usize;
+            for i in (s_start as usize)..s_end {
+                let target_id = flat_edges[i].target_id;
+                let desc_id = flat_edges[i].desc_id;
+                let is_rev = flat_edges[i].is_reverse;
+                if let Some(&(t_start, t_count)) = node_edge_offsets.get(&target_id) {
+                    flat_edges[i].target_edges_start = t_start;
+                    flat_edges[i].target_edges_count = t_count;
+                    let t_end = t_start as usize + t_count as usize;
+                    let mut matched_rev = u32::MAX;
+                    for rev_idx in (t_start as usize)..t_end {
+                        let rev_edge = &flat_edges[rev_idx];
+                        if rev_edge.target_id == source_id {
+                            if rev_edge.desc_id == desc_id && rev_edge.is_reverse != is_rev {
+                                matched_rev = rev_idx as u32;
+                                break;
+                            } else if matched_rev == u32::MAX {
+                                matched_rev = rev_idx as u32;
+                            }
                         }
                     }
+                    flat_edges[i].rev_edge_idx = matched_rev;
+                } else {
+                    flat_edges[i].target_edges_start = 0;
+                    flat_edges[i].target_edges_count = 0;
                 }
-                flat_edges[i].rev_edge_idx = matched_rev;
-            } else {
-                flat_edges[i].target_edges_start = 0;
-                flat_edges[i].target_edges_count = 0;
             }
         }
 

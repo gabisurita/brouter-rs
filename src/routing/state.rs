@@ -3,8 +3,6 @@
 //! Includes compact open-set node representation, min-heap priority items,
 //! slot-recycled node pools, and edge candidate dominance tracking.
 
-use std::cmp::Ordering;
-
 use super::path::PathState;
 use crate::types::{Cost, ElevationQuarterMeters, MicroDegrees, NodeId, Point3D};
 
@@ -181,25 +179,11 @@ pub struct SearchNode {
     pub node_desc_id: u32,
 }
 
-/// Compact 8-byte item stored in the BinaryHeap priority queue.
+/// Compact 8-byte item stored in the [`QuadHeap`] priority queue.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct HeapItem {
     pub priority: Cost,
     pub node_idx: u32,
-}
-
-impl Ord for HeapItem {
-    #[inline(always)]
-    fn cmp(&self, other: &Self) -> Ordering {
-        other.priority.cmp(&self.priority) // min-heap
-    }
-}
-
-impl PartialOrd for HeapItem {
-    #[inline(always)]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 /// Cache-efficient 4-ary min-heap for search items.
@@ -227,6 +211,11 @@ impl QuadHeap {
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.data.len()
+    }
+
+    #[inline(always)]
+    pub fn as_slice(&self) -> &[HeapItem] {
+        &self.data
     }
 
     #[inline(always)]
@@ -289,20 +278,7 @@ impl QuadHeap {
         }
         Some(root)
     }
-
-    #[inline(always)]
-    pub fn clear(&mut self) {
-        self.data.clear();
-    }
-
-    #[inline(always)]
-    pub fn reserve(&mut self, capacity: usize) {
-        if self.data.capacity() < capacity {
-            self.data.reserve(capacity - self.data.capacity());
-        }
-    }
 }
-
 
 /// Preallocated memory pool with slot recycling for search nodes.
 pub struct NodePool {
@@ -331,23 +307,20 @@ impl NodePool {
     }
 
     #[inline(always)]
+    pub fn get(&self, idx: u32) -> &SearchNode {
+        &self.nodes[idx as usize]
+    }
+
+    #[inline(always)]
+    pub fn get_mut(&mut self, idx: u32) -> &mut SearchNode {
+        &mut self.nodes[idx as usize]
+    }
+
+    #[inline(always)]
     pub fn free(&mut self, idx: u32) -> SearchNode {
         let node = self.nodes[idx as usize];
         self.free_list.push(idx);
         node
-    }
-
-    #[inline(always)]
-    pub fn clear(&mut self) {
-        self.nodes.clear();
-        self.free_list.clear();
-    }
-
-    #[inline(always)]
-    pub fn reserve(&mut self, capacity: usize) {
-        if self.nodes.capacity() < capacity {
-            self.nodes.reserve(capacity - self.nodes.capacity());
-        }
     }
 }
 
@@ -386,13 +359,12 @@ pub struct SearchTrack {
 
 /// Cache-resident cost cutting guide built from Pass 0 search results.
 ///
-/// Maps directed global edge indices along the winning Pass 0 route to their
-/// cumulative cost. Stored in a compact, power-of-two open-addressing table (typically 16-128 KB)
-/// that fits entirely within L1/L2 CPU cache, eliminating 30+ MB heap allocations
-/// and DRAM cache misses during Pass 1 edge relaxation.
+/// Maps directed `(from_node_id, to_node_id)` pairs along the winning Pass 0 route to their
+/// cumulative cost. Stored in a compact, power-of-two open-addressing table
+/// that fits within CPU cache and remains invariant across per-pass graph resets.
 #[derive(Debug, Clone)]
 pub struct Pass0CostGuide {
-    table: Vec<(u32, Cost)>,
+    table: Vec<(u64, u64, Cost)>,
     mask: usize,
     pub pass0_total_cost: Cost,
 }
@@ -402,42 +374,50 @@ impl Pass0CostGuide {
     pub fn new(step_count: usize, pass0_total_cost: Cost) -> Self {
         let cap = (step_count * 3).next_power_of_two().max(512);
         Self {
-            table: vec![(u32::MAX, 0); cap],
+            table: vec![(0, 0, 0); cap],
             mask: cap - 1,
             pass0_total_cost,
         }
     }
 
-    /// Records an edge on the winning Pass 0 path with its cumulative cost.
     #[inline(always)]
-    pub fn record_edge(&mut self, edge_idx: u32, cost: Cost) {
-        if edge_idx == u32::MAX {
+    fn hash_pair(from_id: u64, to_id: u64) -> usize {
+        let h = from_id
+            .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+            ^ to_id.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        (h ^ (h >> 32)) as usize
+    }
+
+    /// Records a directed link `(from_id, to_id)` on the winning Pass 0 path with its cumulative cost.
+    #[inline(always)]
+    pub fn record_edge(&mut self, from_id: u64, to_id: u64, cost: Cost) {
+        if from_id == 0 || to_id == 0 {
             return;
         }
-        let mut idx = (edge_idx as usize) & self.mask;
+        let mut idx = Self::hash_pair(from_id, to_id) & self.mask;
         loop {
             let entry = &mut self.table[idx];
-            if entry.0 == u32::MAX || entry.0 == edge_idx {
-                *entry = (edge_idx, cost);
+            if entry.0 == 0 || (entry.0 == from_id && entry.1 == to_id) {
+                *entry = (from_id, to_id, cost);
                 return;
             }
             idx = (idx + 1) & self.mask;
         }
     }
 
-    /// Retrieves cumulative cost if this edge was part of the Pass 0 route.
+    /// Retrieves cumulative cost if this directed link `(from_id, to_id)` was part of the Pass 0 route.
     #[inline(always)]
-    pub fn get_cost(&self, edge_idx: u32) -> Option<Cost> {
-        if edge_idx == u32::MAX {
+    pub fn get_cost(&self, from_id: u64, to_id: u64) -> Option<Cost> {
+        if from_id == 0 || to_id == 0 {
             return None;
         }
-        let mut idx = (edge_idx as usize) & self.mask;
+        let mut idx = Self::hash_pair(from_id, to_id) & self.mask;
         loop {
             let entry = self.table[idx];
-            if entry.0 == edge_idx {
-                return Some(entry.1);
+            if entry.0 == from_id && entry.1 == to_id {
+                return Some(entry.2);
             }
-            if entry.0 == u32::MAX {
+            if entry.0 == 0 {
                 return None;
             }
             idx = (idx + 1) & self.mask;

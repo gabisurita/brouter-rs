@@ -6,7 +6,6 @@
 //! Node container in the routing graph holding coordinates, elevation,
 //! OSM node tags, and turn restrictions.
 
-use crate::rd5::micro_cache::DecodedTurnRestriction;
 pub use crate::types::{ElevationQuarterMeters, MicroDegrees, NodeId, Point2D};
 
 /// Unique 64-bit integer identifier derived from integer `(ilon, ilat)`.
@@ -28,13 +27,13 @@ pub fn unpack_node_id(id: NodeId) -> Point2D {
 /// An OSM node in the routing graph.
 ///
 /// Corresponds to Java class `btools.mapaccess.OsmNode`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OsmNode {
     pub ilon: MicroDegrees,
     pub ilat: MicroDegrees,
-    pub selev: ElevationQuarterMeters,
     pub node_desc_id: u32,
-    pub turn_restrictions: Vec<DecodedTurnRestriction>,
+    pub selev: ElevationQuarterMeters,
+    pub has_tr: bool,
 }
 
 impl OsmNode {
@@ -42,9 +41,9 @@ impl OsmNode {
         Self {
             ilon,
             ilat,
-            selev: i16::MIN,
             node_desc_id: u32::MAX,
-            turn_restrictions: Vec::new(),
+            selev: i16::MIN,
+            has_tr: false,
         }
     }
 

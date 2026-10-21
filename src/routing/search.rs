@@ -30,6 +30,7 @@ use super::state::{
 use crate::dsl::evaluator::ProfileEvaluator;
 use crate::dsl::lookups::LookupData;
 use crate::dsl::parser::Profile;
+use crate::graph::fast_map::FastHashSet;
 use crate::graph::matcher::MatchedWaypoint;
 use crate::graph::routing_graph::{GraphEdge, RoutingGraph, SnapRequest, NO_DESC};
 use crate::graph::spatial::{
@@ -283,14 +284,6 @@ impl<'a> GraphRef<'a> {
     }
 }
 
-/// Global graph, lookup tables, and profile context for search passes.
-pub struct EngineContext<'a> {
-    pub graph: &'a RoutingGraph,
-    pub lookups: &'a LookupData,
-    pub profile: &'a Profile,
-    pub cached_way_costs: &'a [crate::dsl::evaluator::WayCostResult],
-}
-
 /// Kinematic and elevation configuration bundle for a search pass.
 #[derive(Clone, Copy)]
 pub struct PassConfigs<'a> {
@@ -315,7 +308,6 @@ pub struct SearchPassParams<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct SearchLimits {
     pub max_cost: Option<Cost>,
-    pub edge_cap: usize,
     pub heap_cap: usize,
 }
 
@@ -541,6 +533,11 @@ impl AStarRouter {
         let mut evaluator = ProfileEvaluator::new(profile, &lookups.way, &lookups.node);
 
         // 1. Snap waypoints
+        if let Some(g_mut) = graph.as_mut() {
+            if g_mut.has_cell_provider() && !g_mut.loaded_cells.is_empty() {
+                g_mut.reset_for_pass([0, 0, 0, 0]);
+            }
+        }
         let start_pt = Point2D::new(spatial::lon_to_ilon(start_lon), spatial::lat_to_ilat(start_lat));
         let target_pt = Point2D::new(spatial::lon_to_ilon(target_lon), spatial::lat_to_ilat(target_lat));
         let dir_start_to_target = start_direction
@@ -577,14 +574,17 @@ impl AStarRouter {
             })
             .ok_or_else(|| "Target position could not be mapped to graph".to_string())?;
 
+        let endpoint_ids = [
+            start_mwp.node1.node_id(),
+            start_mwp.node2.node_id(),
+            target_mwp.node1.node_id(),
+            target_mwp.node2.node_id(),
+        ];
         if let Some(g_mut) = graph.as_mut() {
             if g_mut.has_cell_provider() {
-                for id in [
-                    start_mwp.node1.node_id(),
-                    start_mwp.node2.node_id(),
-                    target_mwp.node1.node_id(),
-                    target_mwp.node2.node_id(),
-                ] {
+                g_mut.spatial_grid.clear();
+                g_mut.spatial_grid.shrink_to_fit();
+                for id in endpoint_ids {
                     if id != 0 {
                         g_mut.ensure_node_finalized(id);
                     }
@@ -610,18 +610,15 @@ impl AStarRouter {
         let pass2_coeff = profile.get_global_var("pass2coefficient", 0.0) as f64;
 
         let air_dist_km = distance(start_mwp.crosspoint, target_mwp.crosspoint) / 1000.0;
-        let edge_cap = if air_dist_km < 1.0 {
-            2_048
+        let heap_cap = if air_dist_km < 1.0 {
+            1_024
         } else if air_dist_km < 5.0 {
-            16_384
+            4_096
         } else if air_dist_km < 25.0 {
-            131_072
-        } else if air_dist_km < 100.0 {
-            1_048_576
+            32_768
         } else {
-            (graph.edge_count() / 2).clamp(1_048_576, 4_194_304)
+            262_144
         };
-        let heap_cap = (edge_cap / 4).clamp(1_024, 262_144);
 
         let pass_configs = PassConfigs {
             kinematic: &kinematic_cfg,
@@ -633,6 +630,13 @@ impl AStarRouter {
         let mut target_result = None;
 
         for alt in 0..=alternative_idx {
+            if alt > 0 {
+                if let Some(g_mut) = graph.as_mut() {
+                    if g_mut.has_cell_provider() {
+                        g_mut.reset_for_pass(endpoint_ids);
+                    }
+                }
+            }
             let ref_param = if alt > 0 { Some(&ref_nodes) } else { None };
 
             // 2. Run Pass 0 (fast initial search with pass1coefficient)
@@ -648,7 +652,6 @@ impl AStarRouter {
             };
             let pass0_limits = SearchLimits {
                 max_cost: None,
-                edge_cap,
                 heap_cap,
             };
             let pass0_track = self.search_pass(
@@ -661,9 +664,14 @@ impl AStarRouter {
             )?;
 
             let winning_track = if pass2_coeff >= 0.0 {
+                if let Some(g_mut) = graph.as_mut() {
+                    if g_mut.has_cell_provider() {
+                        g_mut.reset_for_pass(endpoint_ids);
+                    }
+                }
                 let mut cost_guide = Pass0CostGuide::new(pass0_track.steps.len(), pass0_track.total_cost);
                 for step in &pass0_track.steps {
-                    cost_guide.record_edge(step.global_edge_idx, step.cost);
+                    cost_guide.record_edge(step.from_node_id, step.node_id, step.cost);
                 }
 
                 let cost_cutting_threshold = Some(pass0_track.total_cost + 5000);
@@ -680,7 +688,6 @@ impl AStarRouter {
                 };
                 let pass1_limits = SearchLimits {
                     max_cost: cost_cutting_threshold,
-                    edge_cap,
                     heap_cap,
                 };
                 let pass1_res = self.search_pass(
@@ -705,6 +712,28 @@ impl AStarRouter {
             } else {
                 pass0_track
             };
+
+            if let Some(g_mut) = graph.as_mut() {
+                if g_mut.has_cell_provider() {
+                    let missing_any = winning_track.steps.iter().any(|step| {
+                        (step.from_node_id != 0
+                            && !g_mut.node_edge_offsets.contains_key(&step.from_node_id))
+                            || (step.node_id != 0
+                                && !g_mut.node_edge_offsets.contains_key(&step.node_id))
+                    });
+                    if missing_any {
+                        g_mut.reset_for_pass(endpoint_ids);
+                    }
+                    for step in &winning_track.steps {
+                        if step.from_node_id != 0 {
+                            g_mut.ensure_node_finalized(step.from_node_id);
+                        }
+                        if step.node_id != 0 {
+                            g_mut.ensure_node_finalized(step.node_id);
+                        }
+                    }
+                }
+            }
 
             let costs = graph.sync_profile_costs(profile, lookups);
 
@@ -768,7 +797,6 @@ impl AStarRouter {
             profile,
             limits.max_cost,
             total_edges,
-            limits.edge_cap,
             limits.heap_cap,
         );
         state.seed_pass(&ctx)?;
@@ -848,6 +876,7 @@ impl AStarRouter {
                                         .unwrap_or(i16::MIN)
                                 };
                                 e.fill_polyline(
+                                    graph,
                                     &mut tmp_poly,
                                     from_node.ilon,
                                     from_node.ilat,
@@ -911,6 +940,7 @@ impl AStarRouter {
                         })?
                 };
                 edge.polyline(
+                    graph,
                     from_node.ilon,
                     from_node.ilat,
                     from_node.selev,
@@ -935,10 +965,11 @@ impl AStarRouter {
                             continue;
                         }
                         if let Some(wc) = get_way_cost(cached_way_costs, e.desc_id, e.is_reverse) {
-                            let p2 = if e.geometry.is_empty() {
+                            let p2 = if e.is_geometry_empty() {
                                 Point2D::new(e.target_lon, e.target_lat)
                             } else {
                                 e.fill_polyline(
+                                    graph,
                                     &mut tmp_poly,
                                     from_node.ilon,
                                     from_node.ilat,
@@ -1349,10 +1380,13 @@ struct SearchPassState<'a> {
     evaluator: ProfileEvaluator<'a>,
     open_set: QuadHeap,
     node_pool: NodePool,
-    edge_heads: Vec<u32>,
+    edge_heads: FastHashMap<u32, u32>,
     closed_edges: Vec<u64>,
     edge_states_pool: Vec<EdgeState>,
+    edge_states_free: Vec<u32>,
     history: Vec<HistoryStep>,
+    history_free: Vec<u32>,
+    next_history_gc: usize,
     sliced_map: FastHashMap<u32, Vec<Point3D>>,
     poly_buf: Vec<Point3D>,
     node_lookup_buf: Vec<i32>,
@@ -1361,7 +1395,7 @@ struct SearchPassState<'a> {
     final_cost: u32,
     best_target_history: Option<u32>,
     nodes_popped: usize,
-    edges_evaluated: usize,
+    last_gc_cells: usize,
 }
 
 impl<'a> SearchPassState<'a> {
@@ -1370,18 +1404,21 @@ impl<'a> SearchPassState<'a> {
         profile: &'a Profile,
         max_cost_limit: Option<u32>,
         total_edges: usize,
-        edge_cap: usize,
         heap_cap: usize,
     ) -> Self {
         let num_edge_words = total_edges.div_ceil(64);
+        let init_history_cap = heap_cap.clamp(4_096, 65_536);
         Self {
             evaluator: ProfileEvaluator::new(profile, &ctx.lookups.way, &ctx.lookups.node),
             open_set: QuadHeap::with_capacity(heap_cap),
             node_pool: NodePool::with_capacity(heap_cap),
-            edge_heads: vec![u32::MAX; total_edges],
+            edge_heads: FastHashMap::with_capacity_and_hasher(heap_cap.min(32_768), Default::default()),
             closed_edges: vec![0u64; num_edge_words],
-            edge_states_pool: Vec::with_capacity(edge_cap),
-            history: Vec::with_capacity(edge_cap),
+            edge_states_pool: Vec::with_capacity(heap_cap.min(65_536)),
+            edge_states_free: Vec::with_capacity(heap_cap.min(16_384)),
+            history: Vec::with_capacity(init_history_cap),
+            history_free: Vec::new(),
+            next_history_gc: 65_536,
             sliced_map: FastHashMap::default(),
             poly_buf: Vec::with_capacity(64),
             node_lookup_buf: vec![0i32; ctx.lookups.node.names.len()],
@@ -1390,7 +1427,338 @@ impl<'a> SearchPassState<'a> {
             final_cost: u32::MAX,
             best_target_history: None,
             nodes_popped: 0,
-            edges_evaluated: 0,
+            last_gc_cells: ctx.graph.loaded_cell_count(),
+        }
+    }
+
+    #[inline(always)]
+    fn alloc_history(&mut self, step: HistoryStep) -> u32 {
+        if let Some(idx) = self.history_free.pop() {
+            self.history[idx as usize] = step;
+            idx
+        } else {
+            let idx = self.history.len() as u32;
+            self.history.push(step);
+            idx
+        }
+    }
+
+    /// Marks all `HistoryStep` chains reachable from active open-set nodes, edge candidate states,
+    /// sliced start/end paths, and `best_target_history`, then sweeps unreachable slots onto `history_free`.
+    fn gc_history(&mut self) -> Vec<u64> {
+        let len = self.history.len();
+        if len == 0 {
+            return Vec::new();
+        }
+        let mut marked = vec![0u64; len.div_ceil(64)];
+        let mut mark_chain = |mut idx: u32| {
+            while idx != u32::MAX {
+                let i = idx as usize;
+                let w = i >> 6;
+                let b = 1u64 << (i & 63);
+                if (marked[w] & b) != 0 {
+                    break;
+                }
+                marked[w] |= b;
+                idx = self.history[i].prev_idx;
+            }
+        };
+
+        if let Some(target_h) = self.best_target_history {
+            mark_chain(target_h);
+        }
+        for &h_idx in self.sliced_map.keys() {
+            mark_chain(h_idx);
+        }
+        for item in self.open_set.as_slice() {
+            let sn = self.node_pool.get(item.node_idx);
+            if sn.edge_idx != u32::MAX && self.is_edge_closed(sn.edge_idx) {
+                continue;
+            }
+            mark_chain(sn.history_idx);
+            if sn.edge_idx != u32::MAX {
+                if let Some(es) = self.get_edge_state(sn.edge_idx) {
+                    for cand in es.candidates() {
+                        mark_chain(cand.history_idx);
+                    }
+                }
+            }
+        }
+
+        self.history_free.clear();
+        for idx in (0..len).rev() {
+            if (marked[idx >> 6] & (1u64 << (idx & 63))) == 0 {
+                self.history_free.push(idx as u32);
+            }
+        }
+        self.next_history_gc = if self.history_free.len() < len / 4 {
+            (len * 2).max(65_536)
+        } else {
+            len.max(65_536)
+        };
+        marked
+    }
+
+    /// Prunes settled interior nodes and edges that can no longer participate in a valid path to the target.
+    ///
+    /// Matches Java BRouter's `OsmNodesMap.collectOutreachers` + `canEscape`:
+    /// 1. Forward BFS from open-set nodes and unloaded cell-border stubs along unclosed passable in-bound edges.
+    /// 2. Backward BFS from unfinalized frontier nodes and target endpoints through finalized predecessors.
+    /// 3. Retains only `fwd_visited ∩ bwd_visited`, unfinalized frontier nodes, and active `HistoryStep` chains.
+    fn gc_graph(&mut self, ctx: &mut SearchPassContext<'a, '_, '_>) {
+        if !ctx.graph.has_cell_provider() {
+            return;
+        }
+        let marked_history = self.gc_history();
+
+        let pass1_bound = if ctx.air_distance_factor == 0.0 {
+            self.max_cost_limit.and_then(|max_cost| {
+                self.open_set
+                    .as_slice()
+                    .iter()
+                    .map(|item| self.node_pool.get(item.node_idx))
+                    .filter(|sn| sn.edge_idx == u32::MAX || !self.is_edge_closed(sn.edge_idx))
+                    .map(|sn| sn.cost)
+                    .min()
+                    .map(|min_c| (min_c, max_cost))
+            })
+        } else {
+            None
+        };
+
+        let target_cp = ctx.target_mwp.crosspoint;
+        let in_cost_bound = |ilon: i32, ilat: i32| -> bool {
+            if let Some((min_cost, max_cost)) = pass1_bound {
+                let d = spatial::distance(Point2D::new(ilon, ilat), target_cp) as u32;
+                min_cost.saturating_add(d) <= max_cost
+            } else {
+                true
+            }
+        };
+
+        let mut fwd_finalized_idx: FastHashMap<u64, u32> = FastHashMap::default();
+        let mut fwd_finalized_nodes: Vec<u64> = Vec::new();
+        let mut rev_head: Vec<u32> = Vec::new();
+        let mut rev_edges: Vec<(u32, u32)> = Vec::new();
+        let mut exit_seeds: Vec<u32> = Vec::new();
+        let mut fwd_unfinalized: FastHashSet<u64> = FastHashSet::default();
+        let mut fwd_queue: Vec<u64> = Vec::new();
+
+        let enqueue_finalized = |u_id: u64,
+                                     fwd_finalized_idx: &mut FastHashMap<u64, u32>,
+                                     fwd_finalized_nodes: &mut Vec<u64>,
+                                     rev_head: &mut Vec<u32>,
+                                     fwd_queue: &mut Vec<u64>|
+         -> u32 {
+            if let Some(&idx) = fwd_finalized_idx.get(&u_id) {
+                idx
+            } else {
+                let idx = fwd_finalized_nodes.len() as u32;
+                fwd_finalized_idx.insert(u_id, idx);
+                fwd_finalized_nodes.push(u_id);
+                rev_head.push(u32::MAX);
+                fwd_queue.push(u_id);
+                idx
+            }
+        };
+
+        for item in self.open_set.as_slice() {
+            let sn = self.node_pool.get(item.node_idx);
+            if sn.node_id == 0 || (sn.edge_idx != u32::MAX && self.is_edge_closed(sn.edge_idx)) {
+                continue;
+            }
+            if pass1_bound.is_some_and(|(_, max_cost)| sn.cost.saturating_add(sn.air_dist) > max_cost) {
+                continue;
+            }
+            let u_id = sn.node_id;
+            if ctx.graph.node_edge_offsets.contains_key(&u_id) {
+                enqueue_finalized(
+                    u_id,
+                    &mut fwd_finalized_idx,
+                    &mut fwd_finalized_nodes,
+                    &mut rev_head,
+                    &mut fwd_queue,
+                );
+            } else if fwd_unfinalized.insert(u_id) {
+                fwd_queue.push(u_id);
+            }
+        }
+
+        for &u_id in ctx.graph.edges.keys() {
+            let pos = crate::graph::node::unpack_node_id(u_id);
+            if !ctx.graph.is_cell_checked_at_microdeg(pos.lon, pos.lat)
+                && in_cost_bound(pos.lon, pos.lat)
+                && fwd_unfinalized.insert(u_id)
+            {
+                fwd_queue.push(u_id);
+            }
+        }
+
+        while let Some(u_id) = fwd_queue.pop() {
+            if let Some(&(start, count)) = ctx.graph.node_edge_offsets.get(&u_id) {
+                let u_idx = fwd_finalized_idx[&u_id];
+                if u_id == ctx.target_id1 || u_id == ctx.target_id2 {
+                    exit_seeds.push(u_idx);
+                }
+                let edges = &ctx.graph.flat_edges[start as usize..start as usize + count as usize];
+                for e in edges {
+                    if self.is_edge_closed(e.edge_idx) {
+                        continue;
+                    }
+                    if e.is_target_dead_end
+                        && e.target_id != ctx.target_id1
+                        && e.target_id != ctx.target_id2
+                        && !ctx.protected_nodes.contains(&e.target_id)
+                    {
+                        continue;
+                    }
+                    if e.desc_id != NO_DESC
+                        && get_way_cost(&ctx.costs.way_costs, e.desc_id, e.is_reverse)
+                            .is_none_or(|wc| wc.costfactor > 9998.0)
+                    {
+                        continue;
+                    }
+                    if !in_cost_bound(e.target_lon, e.target_lat) {
+                        continue;
+                    }
+                    let t_id = e.target_id;
+                    if t_id == ctx.target_id1 || t_id == ctx.target_id2 {
+                        exit_seeds.push(u_idx);
+                    }
+                    if !ctx.graph.node_edge_offsets.contains_key(&t_id) {
+                        exit_seeds.push(u_idx);
+                        if fwd_unfinalized.insert(t_id) {
+                            fwd_queue.push(t_id);
+                        }
+                    } else {
+                        let t_idx = enqueue_finalized(
+                            t_id,
+                            &mut fwd_finalized_idx,
+                            &mut fwd_finalized_nodes,
+                            &mut rev_head,
+                            &mut fwd_queue,
+                        );
+                        let rev_e_idx = rev_edges.len() as u32;
+                        rev_edges.push((u_idx, rev_head[t_idx as usize]));
+                        rev_head[t_idx as usize] = rev_e_idx;
+                    }
+                }
+            } else if let Some(edges) = ctx.graph.edges.get(&u_id) {
+                for e in edges {
+                    if !in_cost_bound(e.target_lon, e.target_lat) {
+                        continue;
+                    }
+                    let t_id = e.target_id;
+                    if ctx.graph.node_edge_offsets.contains_key(&t_id) {
+                        enqueue_finalized(
+                            t_id,
+                            &mut fwd_finalized_idx,
+                            &mut fwd_finalized_nodes,
+                            &mut rev_head,
+                            &mut fwd_queue,
+                        );
+                    } else if fwd_unfinalized.insert(t_id) {
+                        fwd_queue.push(t_id);
+                    }
+                }
+            }
+        }
+
+        let mut bwd_visited = vec![0u64; fwd_finalized_nodes.len().div_ceil(64)];
+        let mut bwd_queue: Vec<u32> = Vec::with_capacity(exit_seeds.len());
+        for u_idx in exit_seeds {
+            let w = (u_idx as usize) >> 6;
+            let b = 1u64 << (u_idx & 63);
+            if (bwd_visited[w] & b) == 0 {
+                bwd_visited[w] |= b;
+                bwd_queue.push(u_idx);
+            }
+        }
+        while let Some(v_idx) = bwd_queue.pop() {
+            let mut cur = rev_head[v_idx as usize];
+            while cur != u32::MAX {
+                let (u_idx, next) = rev_edges[cur as usize];
+                let w = (u_idx as usize) >> 6;
+                let b = 1u64 << (u_idx & 63);
+                if (bwd_visited[w] & b) == 0 {
+                    bwd_visited[w] |= b;
+                    bwd_queue.push(u_idx);
+                }
+                cur = next;
+            }
+        }
+
+        let mut keep_nodes: FastHashSet<u64> = FastHashSet::default();
+        let mut frontier_cells: FastHashSet<(i32, i32)> = FastHashSet::default();
+        let mut keep_with_cell = |u_id: u64| {
+            if u_id != 0 {
+                keep_nodes.insert(u_id);
+                let pos = crate::graph::node::unpack_node_id(u_id);
+                if let Some(cell) = ctx.graph.cell_coords_at_microdeg(pos.lon, pos.lat) {
+                    frontier_cells.insert(cell);
+                }
+            }
+        };
+
+        for (u_idx, &u_id) in fwd_finalized_nodes.iter().enumerate() {
+            if (bwd_visited[u_idx >> 6] & (1u64 << (u_idx & 63))) != 0 {
+                keep_with_cell(u_id);
+            }
+        }
+        for &u_id in &fwd_unfinalized {
+            keep_with_cell(u_id);
+        }
+        for id in [ctx.target_id1, ctx.target_id2] {
+            keep_with_cell(id);
+        }
+        for id in [ctx.start_id1, ctx.start_id2]
+            .into_iter()
+            .chain(ctx.protected_nodes.iter().copied())
+        {
+            if id != 0 {
+                keep_nodes.insert(id);
+            }
+        }
+
+        for &u_id in ctx.graph.edges.keys() {
+            let pos = crate::graph::node::unpack_node_id(u_id);
+            if ctx
+                .graph
+                .cell_coords_at_microdeg(pos.lon, pos.lat)
+                .is_some_and(|cell| frontier_cells.contains(&cell))
+                && in_cost_bound(pos.lon, pos.lat)
+            {
+                keep_nodes.insert(u_id);
+            }
+        }
+
+        for (idx, h) in self.history.iter().enumerate() {
+            if (marked_history[idx >> 6] & (1u64 << (idx & 63))) != 0 {
+                if h.node_id != 0 {
+                    keep_nodes.insert(h.node_id);
+                }
+                if h.from_node_id != 0 {
+                    keep_nodes.insert(h.from_node_id);
+                }
+            }
+        }
+
+        if let Some(graph_mut) = ctx.graph.as_mut() {
+            graph_mut.compact_live_nodes(&mut keep_nodes, &frontier_cells);
+        }
+
+        for item in self.open_set.as_slice() {
+            let sn = self.node_pool.get_mut(item.node_idx);
+            if sn.node_id != 0 {
+                let (new_start, new_count) = ctx
+                    .graph
+                    .node_edge_offsets
+                    .get(&sn.node_id)
+                    .copied()
+                    .unwrap_or((u32::MAX, 0));
+                sn.out_edges_start = new_start;
+                sn.out_edges_count = new_count;
+            }
         }
     }
 
@@ -1409,44 +1777,35 @@ impl<'a> SearchPassState<'a> {
             self.closed_edges.resize(word + 1, 0u64);
         }
         self.closed_edges[word] |= 1u64 << (idx & 63);
+        if let Some(entry_idx) = self.edge_heads.remove(&edge_idx) {
+            self.edge_states_free.push(entry_idx);
+        }
     }
 
     #[inline(always)]
     fn get_edge_state(&self, edge_idx: u32) -> Option<&EdgeState> {
-        let entry_idx = self
-            .edge_heads
-            .get(edge_idx as usize)
-            .copied()
-            .unwrap_or(u32::MAX);
-        if entry_idx != u32::MAX {
-            Some(&self.edge_states_pool[entry_idx as usize])
-        } else {
-            None
-        }
+        self.edge_heads
+            .get(&edge_idx)
+            .map(|&entry_idx| &self.edge_states_pool[entry_idx as usize])
     }
 
     #[inline(always)]
     fn has_edge_state(&self, edge_idx: u32) -> bool {
-        self.edge_heads
-            .get(edge_idx as usize)
-            .copied()
-            .unwrap_or(u32::MAX)
-            != u32::MAX
+        self.edge_heads.contains_key(&edge_idx)
     }
 
     #[inline(always)]
     fn get_or_create_edge_state(&mut self, edge_idx: u32) -> &mut EdgeState {
-        let idx = edge_idx as usize;
-        if idx >= self.edge_heads.len() {
-            self.edge_heads.resize(idx + 1, u32::MAX);
-        }
-        let entry_idx = self.edge_heads[idx];
-        if entry_idx != u32::MAX {
+        if let Some(&entry_idx) = self.edge_heads.get(&edge_idx) {
             &mut self.edge_states_pool[entry_idx as usize]
+        } else if let Some(reused_idx) = self.edge_states_free.pop() {
+            self.edge_states_pool[reused_idx as usize] = EdgeState::default();
+            self.edge_heads.insert(edge_idx, reused_idx);
+            &mut self.edge_states_pool[reused_idx as usize]
         } else {
             let new_idx = self.edge_states_pool.len() as u32;
             self.edge_states_pool.push(EdgeState::default());
-            self.edge_heads[idx] = new_idx;
+            self.edge_heads.insert(edge_idx, new_idx);
             &mut self.edge_states_pool[new_idx as usize]
         }
     }
@@ -1487,6 +1846,7 @@ impl<'a> SearchPassState<'a> {
                             .map(|n| n.selev)
                             .unwrap_or(i16::MIN);
                         let full_poly = edge.polyline(
+                            &ctx.graph,
                             s_node_pt.lon,
                             s_node_pt.lat,
                             s_elev,
@@ -1530,9 +1890,7 @@ impl<'a> SearchPassState<'a> {
                                 let cost = cost + nogo_cost;
                                 if cost < self.final_cost {
                                     self.final_cost = cost;
-                                    let h_idx = self.history.len() as u32;
-                                    self.sliced_map.insert(h_idx, sliced.clone());
-                                    self.history.push(HistoryStep {
+                                    let h_idx = self.alloc_history(HistoryStep {
                                         node_id: 0,
                                         from_node_id: s_id,
                                         cost,
@@ -1541,6 +1899,7 @@ impl<'a> SearchPassState<'a> {
                                         maxspeed: way_cost.maxspeed,
                                         prev_idx: u32::MAX,
                                     });
+                                    self.sliced_map.insert(h_idx, sliced.clone());
                                     let node_idx = self.node_pool.alloc(SearchNode {
                                         node_id: 0,
                                         from_node_id: s_id,
@@ -1590,10 +1949,7 @@ impl<'a> SearchPassState<'a> {
                 );
                 let priority = (air_dist * ctx.air_distance_factor) as u32;
 
-                let h_idx = self.history.len() as u32;
-                self.sliced_map
-                    .insert(h_idx, vec![Point3D::new(node.ilon, node.ilat, node.selev)]);
-                self.history.push(HistoryStep {
+                let h_idx = self.alloc_history(HistoryStep {
                     node_id: ctx.start_id1,
                     from_node_id: 0,
                     cost: 0,
@@ -1602,6 +1958,8 @@ impl<'a> SearchPassState<'a> {
                     maxspeed: 0.0,
                     prev_idx: u32::MAX,
                 });
+                self.sliced_map
+                    .insert(h_idx, vec![Point3D::new(node.ilon, node.ilat, node.selev)]);
 
                 let (out_start, out_count) = ctx.graph.get_node_edge_slice(ctx.start_id1);
                 let node_idx = self.node_pool.alloc(SearchNode {
@@ -1624,7 +1982,7 @@ impl<'a> SearchPassState<'a> {
                     last_classifier: 0,
                     in_destination: false,
                     can_leave_destination: false,
-                    has_tr: !node.turn_restrictions.is_empty(),
+                    has_tr: node.has_tr,
                     edge_idx: u32::MAX,
                     rev_edge_idx: u32::MAX,
                     out_edges_start: out_start,
@@ -1665,6 +2023,7 @@ impl<'a> SearchPassState<'a> {
                         let s_elev = s_node.map(|n| n.selev).unwrap_or(i16::MIN);
                         let t_elev = t_node.map(|n| n.selev).unwrap_or(i16::MIN);
                         let full_poly = edge.polyline(
+                            &ctx.graph,
                             s_node_pt.lon,
                             s_node_pt.lat,
                             s_elev,
@@ -1790,9 +2149,7 @@ impl<'a> SearchPassState<'a> {
                             } else {
                                 StdPathCalculator::cost_divisors(way_cost)
                             };
-                            let h_idx = self.history.len() as u32;
-                            self.sliced_map.insert(h_idx, sliced);
-                            self.history.push(HistoryStep {
+                            let h_idx = self.alloc_history(HistoryStep {
                                 node_id: t_id,
                                 from_node_id: s_id,
                                 cost: total_cost,
@@ -1801,6 +2158,7 @@ impl<'a> SearchPassState<'a> {
                                 maxspeed: way_cost.maxspeed,
                                 prev_idx: u32::MAX,
                             });
+                            self.sliced_map.insert(h_idx, sliced);
 
                             let in_destination = (way_cost.classifiermask & 64) != 0;
                             self.get_or_create_edge_state(edge.edge_idx).push(
@@ -1859,10 +2217,7 @@ impl<'a> SearchPassState<'a> {
                     );
                     let priority = (air_dist * ctx.air_distance_factor) as u32;
 
-                    let h_idx = self.history.len() as u32;
-                    self.sliced_map
-                        .insert(h_idx, vec![Point3D::new(node.ilon, node.ilat, node.selev)]);
-                    self.history.push(HistoryStep {
+                    let h_idx = self.alloc_history(HistoryStep {
                         node_id: s_id,
                         from_node_id: 0,
                         cost: 0,
@@ -1871,6 +2226,8 @@ impl<'a> SearchPassState<'a> {
                         maxspeed: 0.0,
                         prev_idx: u32::MAX,
                     });
+                    self.sliced_map
+                        .insert(h_idx, vec![Point3D::new(node.ilon, node.ilat, node.selev)]);
 
                     let (out_start, out_count) = ctx.graph.get_node_edge_slice(s_id);
                     let node_idx = self.node_pool.alloc(SearchNode {
@@ -1893,7 +2250,7 @@ impl<'a> SearchPassState<'a> {
                         last_classifier: 0,
                         in_destination: false,
                         can_leave_destination: false,
-                        has_tr: !node.turn_restrictions.is_empty(),
+                        has_tr: node.has_tr,
                         edge_idx: u32::MAX,
                         rev_edge_idx: u32::MAX,
                         out_edges_start: out_start,
@@ -1935,17 +2292,20 @@ impl<'a> SearchPassState<'a> {
         curr.out_edges_start = out_start;
         curr.out_edges_count = out_count;
         if curr.edge_idx != u32::MAX {
-            if let Some(edge) = graph_mut.flat_edges.get_mut(curr.edge_idx as usize) {
-                edge.target_edges_start = out_start;
-                edge.target_edges_count = out_count;
-                curr.rev_edge_idx = edge.rev_edge_idx;
+            if let Some(&(f_start, f_count)) = graph_mut.node_edge_offsets.get(&curr.from_node_id) {
+                let f_end = f_start as usize + f_count as usize;
+                for edge in &mut graph_mut.flat_edges[f_start as usize..f_end] {
+                    if edge.edge_idx == curr.edge_idx {
+                        edge.target_edges_start = out_start;
+                        edge.target_edges_count = out_count;
+                        curr.rev_edge_idx = edge.rev_edge_idx;
+                        break;
+                    }
+                }
             }
         }
         if graph_mut.total_edges > prev_edges {
             let new_total = graph_mut.total_edges;
-            if self.edge_heads.len() < new_total {
-                self.edge_heads.resize(new_total, u32::MAX);
-            }
             let num_words = new_total.div_ceil(64);
             if self.closed_edges.len() < num_words {
                 self.closed_edges.resize(num_words, 0u64);
@@ -1963,7 +2323,20 @@ impl<'a> SearchPassState<'a> {
     fn run_search(&mut self, ctx: &mut SearchPassContext<'a, '_, '_>) -> Result<(), String> {
         let mut cands_buf: Vec<CandidateState> = Vec::with_capacity(8);
         let mut pre_paths_buf: Vec<KinematicPrePath> = Vec::with_capacity(8);
-        while let Some(item) = self.open_set.pop() {
+        while !self.open_set.is_empty() {
+            if self.history_free.is_empty() && self.history.len() >= self.next_history_gc {
+                self.gc_history();
+            }
+            if ctx.graph.has_cell_provider() {
+                let cur_cells = ctx.graph.loaded_cell_count();
+                if cur_cells >= 200 && cur_cells >= self.last_gc_cells + 100 {
+                    self.gc_graph(ctx);
+                    self.last_gc_cells = ctx.graph.loaded_cell_count();
+                }
+            }
+            let Some(item) = self.open_set.pop() else {
+                break;
+            };
             let mut curr = self.node_pool.free(item.node_idx);
             self.nodes_popped += 1;
             if curr.node_id == 0 {
@@ -2027,7 +2400,7 @@ impl<'a> SearchPassState<'a> {
 
             // Pop cost-cutting with elevation correction
             if let Some(guide) = ctx.cost_cutting {
-                if let Some(p0_link_cost) = guide.get_cost(curr.edge_idx) {
+                if let Some(p0_link_cost) = guide.get_cost(curr.from_node_id, curr.node_id) {
                     let elev_corr = StdPathCalculator::elevation_correction(
                         curr.path_state.ehbd,
                         curr.path_state.ehbu,
@@ -2100,10 +2473,11 @@ impl<'a> SearchPassState<'a> {
                         continue;
                     }
                     if let Some(wc) = get_way_cost(&ctx.costs.way_costs, e.desc_id, e.is_reverse) {
-                        let p2 = if e.geometry.is_empty() {
+                        let p2 = if e.is_geometry_empty() {
                             Point2D::new(e.target_lon, e.target_lat)
                         } else {
                             e.fill_polyline(
+                                &ctx.graph,
                                 &mut self.poly_buf,
                                 curr.ilon,
                                 curr.ilat,
@@ -2127,7 +2501,6 @@ impl<'a> SearchPassState<'a> {
             }
 
             for (edge_idx, edge) in edges.iter().enumerate() {
-                self.edges_evaluated += 1;
                 self.relax_edge(
                     ctx,
                     &curr,
@@ -2237,7 +2610,7 @@ impl<'a> SearchPassState<'a> {
                 .unwrap_or(i16::MIN)
         };
 
-        let is_straight = edge.geometry.is_empty();
+        let is_straight = edge.is_geometry_empty();
         let prev_pt = Point2D::new(curr.prev_lon, curr.prev_lat);
         if is_straight {
             if !curr_trs.is_empty()
@@ -2252,7 +2625,7 @@ impl<'a> SearchPassState<'a> {
                 return;
             }
         } else {
-            edge.fill_polyline(&mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
+            edge.fill_polyline(&ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
             if self.poly_buf.len() < 2 {
                 return;
             }
@@ -2274,7 +2647,7 @@ impl<'a> SearchPassState<'a> {
 
         if is_target_link {
             if is_straight {
-                edge.fill_polyline(&mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
+                edge.fill_polyline(&ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
             }
             let sliced = slice_to_crosspoint(
                 &self.poly_buf,
@@ -2315,9 +2688,7 @@ impl<'a> SearchPassState<'a> {
                 let target_cost = curr.cost + edge_cost;
                 if target_cost < self.final_cost {
                     self.final_cost = target_cost;
-                    let h_idx = self.history.len() as u32;
-                    self.sliced_map.insert(h_idx, sliced);
-                    self.history.push(HistoryStep {
+                    let h_idx = self.alloc_history(HistoryStep {
                         node_id: 0,
                         from_node_id: curr.node_id,
                         cost: target_cost,
@@ -2326,6 +2697,7 @@ impl<'a> SearchPassState<'a> {
                         maxspeed: way_cost.maxspeed,
                         prev_idx: curr.history_idx,
                     });
+                    self.sliced_map.insert(h_idx, sliced);
                     let node_idx = self.node_pool.alloc(SearchNode {
                         node_id: 0,
                         from_node_id: curr.node_id,
@@ -2377,7 +2749,7 @@ impl<'a> SearchPassState<'a> {
         let routing_cfgs = ctx.routing_configs();
         let seg_dist_straight = if is_straight {
             if edge.straight_dist > 0.0 {
-                edge.straight_dist
+                edge.straight_dist as f64
             } else {
                 spatial::distance(
                     Point2D::new(curr.ilon, curr.ilat),
@@ -2601,7 +2973,7 @@ impl<'a> SearchPassState<'a> {
         };
 
         if let Some(guide) = ctx.cost_cutting {
-            if let Some(p0_link_cost) = guide.get_cost(edge.edge_idx) {
+            if let Some(p0_link_cost) = guide.get_cost(curr.node_id, edge.target_id) {
                 let elev_corr = StdPathCalculator::elevation_correction(
                     path_state.ehbd,
                     path_state.ehbu,
@@ -2638,24 +3010,17 @@ impl<'a> SearchPassState<'a> {
             return;
         }
 
-        let h_idx = self.history.len() as u32;
-
         // Fast dominance check against existing candidate paths on this edge (if any exist)
-        let new_cand = CandidateState::with_context(
+        let mut new_cand = CandidateState::with_context(
             new_cost,
             path_state.ehbd,
             path_state.ehbu,
-            h_idx,
+            u32::MAX,
             path_selev,
             new_destination,
             can_leave,
         );
-        let entry_idx = self
-            .edge_heads
-            .get(edge.edge_idx as usize)
-            .copied()
-            .unwrap_or(u32::MAX);
-        if entry_idx != u32::MAX {
+        if let Some(&entry_idx) = self.edge_heads.get(&edge.edge_idx) {
             let edge_entry = &self.edge_states_pool[entry_idx as usize];
             let mut dominated = false;
             for cand in edge_entry.candidates() {
@@ -2677,6 +3042,17 @@ impl<'a> SearchPassState<'a> {
             }
         }
 
+        let h_idx = self.alloc_history(HistoryStep {
+            node_id: edge.target_id,
+            from_node_id: curr.node_id,
+            cost: new_cost,
+            global_edge_idx: edge.edge_idx,
+            edge_idx: edge_idx as u16,
+            maxspeed: way_cost.maxspeed,
+            prev_idx: chosen_history_idx,
+        });
+        new_cand.history_idx = h_idx;
+
         let edge_entry = self.get_or_create_edge_state(edge.edge_idx);
         edge_entry.retain(|cand| {
             !cand.is_definitely_worse_than(&new_cand, down_div, up_div)
@@ -2691,16 +3067,6 @@ impl<'a> SearchPassState<'a> {
             ) as u32
         });
         let priority = new_cost + (air_dist as f64 * ctx.air_distance_factor) as u32;
-
-        self.history.push(HistoryStep {
-            node_id: edge.target_id,
-            from_node_id: curr.node_id,
-            cost: new_cost,
-            global_edge_idx: edge.edge_idx,
-            edge_idx: edge_idx as u16,
-            maxspeed: way_cost.maxspeed,
-            prev_idx: chosen_history_idx,
-        });
 
         let node_idx = self.node_pool.alloc(SearchNode {
             node_id: edge.target_id,
