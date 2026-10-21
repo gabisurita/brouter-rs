@@ -1,6 +1,6 @@
 # brouter-rs
 
-An opinionated Rust translation of the official [BRouter](https://github.com/abrensch/brouter) bicycle routing engine.
+Rust port of the [BRouter](https://github.com/abrensch/brouter) bicycle routing engine.
 
 All credit for the routing algorithms, `.rd5` binary format, `.brf` profile DSL, kinematic and elevation hysteresis models, and 2-pass guided A* search goes to Arndt Brenschede and the official [BRouter](https://brouter.de/) contributors. See [PARITY.md](PARITY.md) for benchmark results against official BRouter.
 
@@ -53,8 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Example | Command | Description |
 | :--- | :--- | :--- |
 | Basic Route | `cargo run --release --example basic_route` | Minimal Rust library usage example |
-| HTTP Server | `cargo run --release --example server` | Drop-in BRouter HTTP API server (`/brouter`, `/brouter/profile`) on port 17777 |
-| Parity Suite | `cargo run --release --example compare_routes` | Benchmarks 18 routes across 5 UK routes against `brouter.de` fixtures |
+| HTTP Server | `cargo run --release --example server` | Same API as BRouter HTTP server (`/brouter`, `/brouter/profile`) on port 17777 |
+| Parity Checks | `cargo run --release --example compare_routes` | Benchmarks 18 routes across 5 UK routes against `brouter.de` fixtures |
 | Route Plotter | `cargo run --release --example plot_routes` | Generates an interactive HTML comparison map (`routes_comparison.html`) |
 
 ### Download Routing Data and Fixtures

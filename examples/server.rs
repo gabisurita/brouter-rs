@@ -1,4 +1,4 @@
-//! Drop-in BRouter HTTP API server example.
+//! BRouter-compatible HTTP API server example.
 //!
 //! Corresponds to official BRouter classes:
 //! - `btools.server.RouteServer`
@@ -38,7 +38,7 @@ const MAX_CUSTOM_PROFILE_LEN: usize = 100_000;
 
 #[derive(Parser, Debug)]
 #[command(name = "brouter-server")]
-#[command(about = "Drop-in BRouter HTTP API server in Rust", long_about = None)]
+#[command(about = "BRouter-compatible HTTP API server in Rust", long_about = None)]
 pub struct Cli {
     /// Port to listen on
     #[arg(short, long, default_value = "17777")]

@@ -96,21 +96,19 @@ pub fn aggregate_messages(messages: &[Option<WayMessage>]) -> Vec<[String; 13]> 
     let mut res = Vec::new();
     let mut current: Option<WayMessage> = None;
 
-    for msg_opt in messages {
-        if let Some(md_ref) = msg_opt {
-            if md_ref.way_key_values.is_empty() {
-                continue;
-            }
-            let mut md = md_ref.clone();
-            if let Some(cur) = current.take() {
-                if !cur.node_key_values.is_empty() || cur.way_key_values != md.way_key_values {
-                    res.push(cur.to_message_fields());
-                } else {
-                    md.add(&cur);
-                }
-            }
-            current = Some(md);
+    for md_ref in messages.iter().flatten() {
+        if md_ref.way_key_values.is_empty() {
+            continue;
         }
+        let mut md = md_ref.clone();
+        if let Some(cur) = current.take() {
+            if !cur.node_key_values.is_empty() || cur.way_key_values != md.way_key_values {
+                res.push(cur.to_message_fields());
+            } else {
+                md.add(&cur);
+            }
+        }
+        current = Some(md);
     }
     if let Some(cur) = current {
         res.push(cur.to_message_fields());
@@ -340,12 +338,11 @@ impl VoiceHint {
                 && self.lower_bad_way_angle < 10.0
             {
                 self.cmd = Self::TSLR;
-            } else if cmd_angle > 95.0
+            } else if (cmd_angle > 95.0
                 && self.lower_bad_way_angle > 30.0
-                && self.higher_bad_way_angle > 180.0
+                && self.higher_bad_way_angle > 180.0)
+                || cmd_angle > 110.0
             {
-                self.cmd = Self::TSHR;
-            } else if cmd_angle > 110.0 {
                 self.cmd = Self::TSHR;
             } else if cmd_angle < 60.0 {
                 self.cmd = Self::TSLR;
@@ -533,13 +530,13 @@ impl VoiceHintProcessor {
                     hint_idx as isize,
                     Self::INTERNAL_CATCHING_RANGE_NEAR,
                 );
-                if roundabout_start_idx == hint_idx as isize {
-                    if !inputs[hint_idx].bad_ways.is_empty() {
-                        roundabout_turn_angle -= inputs[hint_idx].good_way.turnangle;
-                        for bad_way in &inputs[hint_idx].bad_ways {
-                            if !bad_way.is_bad_oneway() {
-                                roundabout_turn_angle += bad_way.turnangle;
-                            }
+                if roundabout_start_idx == hint_idx as isize
+                    && !inputs[hint_idx].bad_ways.is_empty()
+                {
+                    roundabout_turn_angle -= inputs[hint_idx].good_way.turnangle;
+                    for bad_way in &inputs[hint_idx].bad_ways {
+                        if !bad_way.is_bad_oneway() {
+                            roundabout_turn_angle += bad_way.turnangle;
                         }
                     }
                 }
@@ -884,16 +881,10 @@ impl VoiceHintProcessor {
                         save = true;
                     } else if VoiceHint::is_180_deg_angle(inp.angle) {
                         save = true;
-                    } else if self.transport_mode == TransportMode::Car
-                        && (angles.abs() as f64) > 180.0 - Self::SIGNIFICANT_ANGLE
-                    {
-                        inp.angle = angles;
-                        inp.calc_command();
-                        inp.distance_to_next += next_input.distance_to_next;
-                        save = true;
-                        hint_idx += 1;
-                    } else if (angles.abs() as f64) < Self::SIGNIFICANT_ANGLE
-                        && inp.distance_to_next < min_range
+                    } else if (self.transport_mode == TransportMode::Car
+                        && (angles.abs() as f64) > 180.0 - Self::SIGNIFICANT_ANGLE)
+                        || ((angles.abs() as f64) < Self::SIGNIFICANT_ANGLE
+                            && inp.distance_to_next < min_range)
                     {
                         inp.angle = angles;
                         inp.calc_command();
@@ -977,7 +968,7 @@ impl VoiceHintProcessor {
         ((input.lower_bad_way_angle.abs() < 35.0 || input.higher_bad_way_angle < 35.0)
             || input.good_way.prio() < input.max_bad_prio
             || input.good_way.prio() > input.old_way.prio())
-            && input_last_saved.map_or(true, |ls| ls.distance_to_next > min_range)
+            && input_last_saved.is_none_or(|ls| ls.distance_to_next > min_range)
             && input.distance_to_next > min_range
     }
 }

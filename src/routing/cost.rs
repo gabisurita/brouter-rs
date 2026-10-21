@@ -254,6 +254,7 @@ impl CarKinematicModel {
     /// Evolves kinetic energy, travel time, and dissipated energy over distance `dist` (m)
     /// and elevation change `delta_h` (m), returning the distance cost in meters-equivalent.
     /// Returns `-1.0` if `effective_speed_limit <= 0.0`.
+    #[allow(clippy::too_many_arguments)]
     pub fn evolve_distance(
         &self,
         ekin: &mut f64,

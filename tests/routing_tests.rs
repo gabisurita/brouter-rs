@@ -160,8 +160,8 @@ fn test_real_full_route_generation() {
 
     println!("Loading Lookups and Fastbike Profile...");
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
     println!("Loading square (180, 141) into RoutingGraph...");
@@ -307,8 +307,8 @@ fn test_clapham_hackney_fastbike() {
     }
 
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
     println!("Loading square (179, 141) from W5_N50.rd5 into RoutingGraph...");
@@ -408,8 +408,8 @@ fn test_clapham_hackney_lowtraffic() {
     }
 
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike-lowtraffic.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike-lowtraffic.brf"), &lookups)
         .expect("Failed to load fastbike-lowtraffic profile");
 
     let mut tile_mgr = TileManager::new(repo_path("data/segments4"));
@@ -503,8 +503,8 @@ fn test_clapham_hackney_verylowtraffic() {
     }
 
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike-verylowtraffic.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike-verylowtraffic.brf"), &lookups)
         .expect("Failed to load fastbike-verylowtraffic profile");
 
     let mut tile_mgr = TileManager::new(repo_path("data/segments4"));
@@ -604,7 +604,7 @@ assign elevationmaxbuffer = 8.0
 assign elevationbufferreduce = 0.0001
 "#;
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
     let profile =
         Profile::parse("test_profile", profile_content, &lookups).expect("Profile parse failed");
 
@@ -631,8 +631,8 @@ fn test_route_with_nogo_zone() {
     }
 
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
     let mut tile_mgr = TileManager::new(repo_path("data/segments4"));
@@ -757,8 +757,8 @@ fn test_voicehints_messages_times_and_kml() {
     }
 
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
     let mut tile_mgr = TileManager::new(repo_path("data/segments4"));
@@ -846,8 +846,8 @@ fn test_heading_beeline_and_nogo_polygons() {
     }
 
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
     let mut tile_mgr = TileManager::new(repo_path("data/segments4"));
@@ -951,9 +951,9 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
         return;
     }
 
-    let lookups = LookupData::load_from_file(&repo_path("profiles/lookups.dat"))
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
         .expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike.brf"), &lookups)
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
     let start = (-0.143613, 51.462414);
@@ -1040,7 +1040,7 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
     assert!(cells_after_1 > 0 && cells_after_1 < 60, "Expected < 60 cells, got {}", cells_after_1);
     assert!(cells_after_2 >= cells_after_1 && cells_after_2 < 80, "Expected < 80 cells, got {}", cells_after_2);
 
-    let safe_profile = Profile::load_from_file(&repo_path("profiles/fastbike-lowtraffic.brf"), &lookups)
+    let safe_profile = Profile::load_from_file(repo_path("profiles/fastbike-lowtraffic.brf"), &lookups)
         .expect("Failed to load fastbike-lowtraffic profile");
     let waypoints_11 = [
         (-0.1421, 51.4611),

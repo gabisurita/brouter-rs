@@ -175,9 +175,9 @@ fn test_real_rd5_graph_loading_and_snapping() {
     let query_lon = sample_lon_deg + 0.0001;
     let query_lat = sample_lat_deg + 0.0001;
 
-    let lookups = brouter_rs::dsl::lookups::LookupData::load_from_file(&repo_path("profiles/lookups.dat"))
+    let lookups = brouter_rs::dsl::lookups::LookupData::load_from_file(repo_path("profiles/lookups.dat"))
         .expect("Failed to load lookups");
-    let profile = brouter_rs::dsl::parser::Profile::load_from_file(&repo_path("profiles/trekking.brf"), &lookups)
+    let profile = brouter_rs::dsl::parser::Profile::load_from_file(repo_path("profiles/trekking.brf"), &lookups)
         .expect("Failed to load trekking profile");
     let mut evaluator =
         brouter_rs::dsl::evaluator::ProfileEvaluator::new(&profile, &lookups.way, &lookups.node);

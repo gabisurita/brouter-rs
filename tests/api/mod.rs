@@ -307,7 +307,7 @@ async fn test_brouter_kml_voicehints_beeline_and_custom_profile() {
     let body_json = resp_json.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body_json).unwrap();
     let props = &json["features"][0]["properties"];
-    assert!(props["voicehints"].as_array().unwrap().len() > 0);
+    assert!(!props["voicehints"].as_array().unwrap().is_empty());
     assert!(props["messages"].as_array().unwrap().len() > 1);
     assert!(props["times"].as_array().unwrap().len() > 2);
 

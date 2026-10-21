@@ -170,11 +170,9 @@ impl RouteResult {
             pt.energy_j = (pt.energy_j - base_energy).max(0.0);
             pt.cost = pt.cost.saturating_sub(base_cost);
         }
-        for msg_opt in &mut next.messages {
-            if let Some(ref mut msg) = msg_opt {
-                msg.time = (msg.time - base_time).max(0.0);
-                msg.energy = (msg.energy - base_energy).max(0.0);
-            }
+        for msg in next.messages.iter_mut().flatten() {
+            msg.time = (msg.time - base_time).max(0.0);
+            msg.energy = (msg.energy - base_energy).max(0.0);
         }
         next.voice_hints.retain_mut(|vh| {
             if vh.index_in_track < trim_count {

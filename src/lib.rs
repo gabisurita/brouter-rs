@@ -1,7 +1,7 @@
 //! # brouter-rs
 //!
-//! Pure bicycle routing engine in Rust with 1:1 parity against BRouter.
-//! Direct RD5 binary file ingestion and full DSL profile support.
+//! Rust port of the BRouter bicycle routing engine.
+//! Supports `.rd5` binary segment files and `.brf` routing profiles.
 
 pub mod dsl;
 pub mod graph;

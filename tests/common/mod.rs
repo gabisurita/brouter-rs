@@ -49,7 +49,9 @@ pub fn get_test_app() -> Option<axum::Router> {
     SHARED_STATE.as_ref().map(|s| create_router(Arc::clone(s)))
 }
 
-pub fn parse_fixture_data(fixture_path: &Path) -> Option<(f64, f64, f64, f64, Vec<(f64, f64)>)> {
+pub type FixtureData = (f64, f64, f64, f64, Vec<(f64, f64)>);
+
+pub fn parse_fixture_data(fixture_path: &Path) -> Option<FixtureData> {
     if !fixture_path.exists() {
         return None;
     }
@@ -73,7 +75,7 @@ pub fn parse_fixture_data(fixture_path: &Path) -> Option<(f64, f64, f64, f64, Ve
     let mut coords = Vec::with_capacity(coords_arr.len());
     for pt in coords_arr {
         let p = pt.as_array()?;
-        let lon = p.get(0)?.as_f64()?;
+        let lon = p.first()?.as_f64()?;
         let lat = p.get(1)?.as_f64()?;
         coords.push((lon, lat));
     }
@@ -81,6 +83,7 @@ pub fn parse_fixture_data(fixture_path: &Path) -> Option<(f64, f64, f64, f64, Ve
     Some((dist, time, cost, ascend, coords))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn assert_route_parity(
     route_name: &str,
     profile: &str,
@@ -160,7 +163,7 @@ pub async fn assert_route_parity(
             arr.iter()
                 .filter_map(|pt| {
                     let p = pt.as_array()?;
-                    Some((p.get(0)?.as_f64()?, p.get(1)?.as_f64()?))
+                    Some((p.first()?.as_f64()?, p.get(1)?.as_f64()?))
                 })
                 .collect()
         })

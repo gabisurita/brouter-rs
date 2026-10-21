@@ -861,7 +861,7 @@ impl AStarRouter {
                     step_edge_idx = e.edge_idx;
                     step_way_cost = get_way_cost(cached_way_costs, e.desc_id, e.is_reverse);
                     if s_i == steps.len() - 1 {
-                        if let (Some(ref sliced), Some(from_node)) = (
+                        if let (Some(sliced), Some(from_node)) = (
                             step.sliced_points.as_ref(),
                             graph.nodes.get(&step.from_node_id),
                         ) {
@@ -1020,7 +1020,7 @@ impl AStarRouter {
                         let node_access = if car_kinematic.is_some() {
                             false
                         } else {
-                            step_way_cost.map_or(false, |wc| wc.nodeaccessgranted)
+                            step_way_cost.is_some_and(|wc| wc.nodeaccessgranted)
                         };
                         lookups.node.decode_into(&mut node_buf, node_access, node_desc);
                         lookups.node.format_key_values(&node_buf)
@@ -1846,7 +1846,7 @@ impl<'a> SearchPassState<'a> {
                             .map(|n| n.selev)
                             .unwrap_or(i16::MIN);
                         let full_poly = edge.polyline(
-                            &ctx.graph,
+                            ctx.graph,
                             s_node_pt.lon,
                             s_node_pt.lat,
                             s_elev,
@@ -2023,7 +2023,7 @@ impl<'a> SearchPassState<'a> {
                         let s_elev = s_node.map(|n| n.selev).unwrap_or(i16::MIN);
                         let t_elev = t_node.map(|n| n.selev).unwrap_or(i16::MIN);
                         let full_poly = edge.polyline(
-                            &ctx.graph,
+                            ctx.graph,
                             s_node_pt.lon,
                             s_node_pt.lat,
                             s_elev,
@@ -2477,7 +2477,7 @@ impl<'a> SearchPassState<'a> {
                             Point2D::new(e.target_lon, e.target_lat)
                         } else {
                             e.fill_polyline(
-                                &ctx.graph,
+                                ctx.graph,
                                 &mut self.poly_buf,
                                 curr.ilon,
                                 curr.ilat,
@@ -2625,7 +2625,7 @@ impl<'a> SearchPassState<'a> {
                 return;
             }
         } else {
-            edge.fill_polyline(&ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
+            edge.fill_polyline(ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
             if self.poly_buf.len() < 2 {
                 return;
             }
@@ -2647,7 +2647,7 @@ impl<'a> SearchPassState<'a> {
 
         if is_target_link {
             if is_straight {
-                edge.fill_polyline(&ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
+                edge.fill_polyline(ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
             }
             let sliced = slice_to_crosspoint(
                 &self.poly_buf,

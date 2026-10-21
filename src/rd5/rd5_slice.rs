@@ -15,12 +15,12 @@ pub trait Rd5SegmentReader: Send + Sync {
     fn read_range(&self, segment_name: &str, start: u64, end: u64) -> io::Result<Vec<u8>>;
 }
 
+type OpenSegmentEntry = Option<(std::sync::Arc<std::fs::File>, u64)>;
+
 /// Filesystem-backed `Rd5SegmentReader` for native random-access cell loading.
 pub struct FileRd5SegmentReader {
     segment_dir: std::path::PathBuf,
-    open_files: std::sync::RwLock<
-        std::collections::HashMap<String, Option<(std::sync::Arc<std::fs::File>, u64)>>,
-    >,
+    open_files: std::sync::RwLock<std::collections::HashMap<String, OpenSegmentEntry>>,
 }
 
 impl FileRd5SegmentReader {
@@ -114,14 +114,14 @@ struct Rd5SquareIndex {
     pos_idx: Vec<u32>,
 }
 
+type SquareIndexEntry = Option<std::sync::Arc<Rd5SquareIndex>>;
+
 /// Lazy on-demand `1/80°` (`MicroCache`) cell provider backed by an `Rd5SegmentReader`.
 /// Reads only the 313-byte segment header/trailer, 25.6 KB square sub-index, and individual ~10 KB cell slices.
 pub struct LazyRd5Provider {
     reader: std::sync::Arc<dyn Rd5SegmentReader>,
     segments: std::sync::RwLock<std::collections::HashMap<String, Option<Rd5SegmentMeta>>>,
-    squares: std::sync::RwLock<
-        std::collections::HashMap<(i32, i32), Option<std::sync::Arc<Rd5SquareIndex>>>,
-    >,
+    squares: std::sync::RwLock<std::collections::HashMap<(i32, i32), SquareIndexEntry>>,
     missing_segments: std::sync::RwLock<std::collections::HashSet<String>>,
 }
 

@@ -60,7 +60,7 @@ fn test_parse_lookups_dat() {
 #[test]
 fn test_parse_all_brouter_profiles() {
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
     let profiles_dir = repo_path("profiles");
 
     let mut profile_paths = Vec::new();
@@ -142,8 +142,8 @@ fn test_parse_all_brouter_profiles() {
 #[test]
 fn test_evaluate_profile_way_tags() {
     let lookups =
-        LookupData::load_from_file(&repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
-    let profile = Profile::load_from_file(&repo_path("profiles/fastbike.brf"), &lookups)
+        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
+    let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike");
 
     let mut evaluator = ProfileEvaluator::new(&profile, &lookups.way, &lookups.node);

@@ -1560,8 +1560,9 @@ impl RoutingGraph {
                     flat_edges[i].target_edges_count = t_count;
                     let t_end = t_start as usize + t_count as usize;
                     let mut matched_rev = u32::MAX;
-                    for rev_idx in (t_start as usize)..t_end {
-                        let rev_edge = &flat_edges[rev_idx];
+                    for (rev_idx, rev_edge) in
+                        flat_edges.iter().enumerate().take(t_end).skip(t_start as usize)
+                    {
                         if rev_edge.target_id == source_id {
                             if rev_edge.desc_id == desc_id && rev_edge.is_reverse != is_rev {
                                 matched_rev = rev_idx as u32;
