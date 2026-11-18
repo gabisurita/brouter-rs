@@ -63,14 +63,14 @@ impl ElevationConfig {
 /// Dynamic path state carried across road segments along a search path.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PathState {
-    pub ehbd: i32,                  // downhill elevation hysteresis buffer in micrometers
-    pub ehbu: i32,                  // uphill elevation hysteresis buffer in micrometers
-    pub elevation_buffer: f32,      // buffer for continuous incline estimation
-    pub total_time_s: Seconds,      // cumulative travel time in seconds
-    pub total_energy_j: Joules,     // cumulative energy in Joules
-    pub ekin: f64,                  // kinetic energy in Joules (for KinematicModel)
-    pub floating_angle_left: f32,   // sliding average left bend in degrees (for KinematicModel)
-    pub floating_angle_right: f32,  // sliding average right bend in degrees (for KinematicModel)
+    pub ehbd: i32,                 // downhill elevation hysteresis buffer in micrometers
+    pub ehbu: i32,                 // uphill elevation hysteresis buffer in micrometers
+    pub elevation_buffer: f32,     // buffer for continuous incline estimation
+    pub total_time_s: Seconds,     // cumulative travel time in seconds
+    pub total_energy_j: Joules,    // cumulative energy in Joules
+    pub ekin: f64,                 // kinetic energy in Joules (for KinematicModel)
+    pub floating_angle_left: f32,  // sliding average left bend in degrees (for KinematicModel)
+    pub floating_angle_right: f32, // sliding average right bend in degrees (for KinematicModel)
 }
 
 /// Turn crossing cost configuration for junctions with `estimated_crossing_class`.
@@ -193,8 +193,7 @@ impl StdPathCalculator {
         state.ehbd = (state.ehbd as f32
             + (delta_h_micros.saturating_neg() as f32 - dist_f * downhillcutoff))
             as i32;
-        state.ehbu =
-            (state.ehbu as f32 + (delta_h_micros as f32 - dist_f * uphillcutoff)) as i32;
+        state.ehbu = (state.ehbu as f32 + (delta_h_micros as f32 - dist_f * uphillcutoff)) as i32;
 
         let mut downweight = 0.0f32;
         let mut total_elev_cost = 0.0f64;
@@ -247,8 +246,7 @@ impl StdPathCalculator {
 
             let mut elev_cost_up = 0.0f32;
             if uphillcostdiv > 0 {
-                elev_cost_up +=
-                    (reduce as f32).min(dist_f * uphillmaxslope) / uphillcostdiv as f32;
+                elev_cost_up += (reduce as f32).min(dist_f * uphillmaxslope) / uphillcostdiv as f32;
             }
             if uphillmaxslopecostdiv > 0 {
                 elev_cost_up += (0.0f32).max(reduce as f32 - dist_f * uphillmaxslope)
@@ -338,7 +336,8 @@ impl StdPathCalculator {
                 let curve_speed = if aa > 10.0 { 200.0 / aa as f64 } else { 20.0 };
                 let distance_time = dist / curve_speed;
                 let decay_factor = (-distance_time / km.turn_angle_decay_time).exp();
-                state.floating_angle_left = (state.floating_angle_left as f64 * decay_factor) as f32;
+                state.floating_angle_left =
+                    (state.floating_angle_left as f64 * decay_factor) as f32;
                 state.floating_angle_right =
                     (state.floating_angle_right as f64 * decay_factor) as f32;
                 if curve_speed < 20.0 {

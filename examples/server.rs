@@ -176,10 +176,7 @@ async fn handle_health() -> &'static str {
     "{\"status\":\"ok\",\"engine\":\"brouter-rs\"}"
 }
 
-async fn handle_profile_upload(
-    State(state): State<Arc<ServerState>>,
-    body: String,
-) -> Response {
+async fn handle_profile_upload(State(state): State<Arc<ServerState>>, body: String) -> Response {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -302,11 +299,7 @@ async fn handle_brouter(
         .or(params.track_format.as_deref())
         .unwrap_or("geojson");
 
-    let mut nogos = params
-        .nogos
-        .as_deref()
-        .map(parse_nogos)
-        .unwrap_or_default();
+    let mut nogos = params.nogos.as_deref().map(parse_nogos).unwrap_or_default();
     if let Some(ref polylines_str) = params.polylines {
         nogos.extend(parse_nogo_polygons(polylines_str, false));
     }
@@ -314,20 +307,17 @@ async fn handle_brouter(
         nogos.extend(parse_nogo_polygons(polygons_str, true));
     }
 
-    let turn_instruction_mode = params
-        .timode
-        .or(params.turn_instruction_mode)
-        .or_else(|| {
-            params.turn_instruction_format.as_deref().and_then(|fmt| {
-                if fmt.eq_ignore_ascii_case("osmand") {
-                    Some(3)
-                } else if fmt.eq_ignore_ascii_case("locus") {
-                    Some(2)
-                } else {
-                    None
-                }
-            })
-        });
+    let turn_instruction_mode = params.timode.or(params.turn_instruction_mode).or_else(|| {
+        params.turn_instruction_format.as_deref().and_then(|fmt| {
+            if fmt.eq_ignore_ascii_case("osmand") {
+                Some(3)
+            } else if fmt.eq_ignore_ascii_case("locus") {
+                Some(2)
+            } else {
+                None
+            }
+        })
+    });
 
     let (start_direction, force_start_direction) = if let Some(h) = params.heading {
         (Some(h), true)

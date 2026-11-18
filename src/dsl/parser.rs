@@ -367,7 +367,9 @@ fn resolve_foreign_vars(expr: &mut BExpr, way_block: Option<&ContextBlock>) -> R
                 .get(var_name)
                 .ok_or_else(|| format!("unknown variable: {context}:{var_name}"))?;
             if idx < way_block.min_write_idx {
-                return Err(format!("bad access to global variable: {context}:{var_name}"));
+                return Err(format!(
+                    "bad access to global variable: {context}:{var_name}"
+                ));
             }
             *var_idx = idx;
         }

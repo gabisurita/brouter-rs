@@ -1,5 +1,7 @@
 # brouter-rs
 
+[![CI](https://github.com/gabisurita/brouter-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/gabisurita/brouter-rs/actions/workflows/ci.yml)
+
 Rust port of the [BRouter](https://github.com/abrensch/brouter) bicycle routing engine.
 
 All credit for the routing algorithms, `.rd5` binary format, `.brf` profile DSL, kinematic and elevation hysteresis models, and 2-pass guided A* search goes to Arndt Brenschede and the official [BRouter](https://brouter.de/) contributors. See [PARITY.md](PARITY.md) for benchmark results against official BRouter.

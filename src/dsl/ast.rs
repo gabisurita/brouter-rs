@@ -119,10 +119,7 @@ pub enum BExpr {
         else_expr: Box<BExpr>,
     },
     /// Assignment of evaluated expression result to local variable index.
-    Assign {
-        var_idx: usize,
-        expr: Box<BExpr>,
-    },
+    Assign { var_idx: usize, expr: Box<BExpr> },
 }
 
 impl BExpr {

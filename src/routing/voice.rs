@@ -228,10 +228,7 @@ impl VoiceHint {
         if !self.old_way.node_key_values.is_empty() {
             let has_stop_or_give_way = self.old_way.node_key_values.contains("highway=give_way")
                 || self.old_way.node_key_values.contains("highway=stop");
-            let is_bwd = self
-                .old_way
-                .node_key_values
-                .contains("direction=backward");
+            let is_bwd = self.old_way.node_key_values.contains("direction=backward");
             if self.old_way.way_key_values.contains("reversedirection=yes") {
                 return has_stop_or_give_way && is_bwd;
             } else {
@@ -516,10 +513,10 @@ impl VoiceHintProcessor {
             let old_prio = inputs[hint_idx].old_way.prio();
             let min_prio = old_prio.min(current_prio);
 
-            let is_link_2_highway =
-                inputs[hint_idx].old_way.is_link_type() && !inputs[hint_idx].good_way.is_link_type();
-            let is_highway_2_link =
-                !inputs[hint_idx].old_way.is_link_type() && inputs[hint_idx].good_way.is_link_type();
+            let is_link_2_highway = inputs[hint_idx].old_way.is_link_type()
+                && !inputs[hint_idx].good_way.is_link_type();
+            let is_highway_2_link = !inputs[hint_idx].old_way.is_link_type()
+                && inputs[hint_idx].good_way.is_link_type();
 
             if self.explicit_roundabouts && inputs[hint_idx].old_way.is_roundabout() {
                 if roundabout_start_idx == -1 {
@@ -679,13 +676,11 @@ impl VoiceHintProcessor {
                 inputs[hint_idx].needs_real_turn = !unconditional_trigger && is_straight;
 
                 if turn_angle.abs() > 5.0 {
-                    if max_angle < turn_angle
-                        && max_angle > turn_angle - 45.0 - turn_angle.max(0.0)
+                    if max_angle < turn_angle && max_angle > turn_angle - 45.0 - turn_angle.max(0.0)
                     {
                         inputs[hint_idx].cmd = VoiceHint::KR;
                     }
-                    if min_angle > turn_angle
-                        && min_angle < turn_angle + 45.0 - turn_angle.min(0.0)
+                    if min_angle > turn_angle && min_angle < turn_angle + 45.0 - turn_angle.min(0.0)
                     {
                         inputs[hint_idx].cmd = VoiceHint::KL;
                     }
@@ -728,9 +723,7 @@ impl VoiceHintProcessor {
                 results2.push(hint);
                 continue;
             }
-            if !(hint.needs_real_turn
-                && (hint.cmd == VoiceHint::C || hint.cmd == VoiceHint::BL))
-            {
+            if !(hint.needs_real_turn && (hint.cmd == VoiceHint::C || hint.cmd == VoiceHint::BL)) {
                 let mut dist = hint.distance_to_next;
                 while dist < Self::INTERNAL_CATCHING_RANGE_NEAR && i > 0 {
                     let h2 = &results[i - 1];
@@ -920,11 +913,7 @@ impl VoiceHintProcessor {
         results
     }
 
-    fn check_for_next_none_motorway(
-        inputs: &[VoiceHint],
-        offset: usize,
-        test_size: usize,
-    ) -> bool {
+    fn check_for_next_none_motorway(inputs: &[VoiceHint], offset: usize, test_size: usize) -> bool {
         for i in 1..=test_size {
             if offset + i >= inputs.len() {
                 break;
@@ -949,9 +938,7 @@ impl VoiceHintProcessor {
             return false;
         }
         let bad_one_way = input.bad_ways.iter().any(|md| md.is_bad_oneway());
-        if bad_one_way
-            && input.lower_bad_way_angle == -181.0
-            && input.higher_bad_way_angle == 181.0
+        if bad_one_way && input.lower_bad_way_angle == -181.0 && input.higher_bad_way_angle == 181.0
         {
             return false;
         }

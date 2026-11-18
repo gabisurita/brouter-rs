@@ -21,9 +21,7 @@ use crate::dsl::evaluator::ProfileEvaluator;
 use crate::dsl::lookups::LookupData;
 use crate::dsl::parser::Profile;
 use crate::rd5::micro_cache::{DecodedGeometryPoint, DecodedMicroCache, DecodedTurnRestriction};
-use crate::types::{
-    BoundingBox, ElevationQuarterMeters, MicroDegrees, NodeId, Point2D, Point3D,
-};
+use crate::types::{BoundingBox, ElevationQuarterMeters, MicroDegrees, NodeId, Point2D, Point3D};
 
 pub const NO_DESC: u32 = u32::MAX;
 
@@ -364,7 +362,9 @@ impl RoutingGraph {
             }
         }
 
-        retain_and_shrink(&mut self.node_edge_offsets, 4096, |k, _| keep_nodes.contains(k));
+        retain_and_shrink(&mut self.node_edge_offsets, 4096, |k, _| {
+            keep_nodes.contains(k)
+        });
 
         let mut kept_slices: Vec<(u64, u32, u16)> = self
             .node_edge_offsets
@@ -428,8 +428,12 @@ impl RoutingGraph {
         self.geometry_pool = new_geom;
 
         retain_and_shrink(&mut self.nodes, 4096, |k, _| keep_nodes.contains(k));
-        retain_and_shrink(&mut self.turn_restrictions, 256, |k, _| keep_nodes.contains(k));
-        retain_and_shrink(&mut self.dead_end_parents, 1024, |k, _| keep_nodes.contains(k));
+        retain_and_shrink(&mut self.turn_restrictions, 256, |k, _| {
+            keep_nodes.contains(k)
+        });
+        retain_and_shrink(&mut self.dead_end_parents, 1024, |k, _| {
+            keep_nodes.contains(k)
+        });
         retain_and_shrink(&mut self.loaded_cells, 512, |cell, &mut non_empty| {
             !non_empty || frontier_cells.contains(cell)
         });
@@ -494,7 +498,9 @@ impl RoutingGraph {
                     })
                     .collect();
             } else {
-                table.way_costs.reserve(expected_way_len - table.way_costs.len());
+                table
+                    .way_costs
+                    .reserve(expected_way_len - table.way_costs.len());
                 let mut way_buf = vec![0i32; lookups.way.names.len()];
                 let mut ev = ProfileEvaluator::new(profile, &lookups.way, &lookups.node);
                 for desc_bytes in remaining {
@@ -507,7 +513,9 @@ impl RoutingGraph {
 
             #[cfg(not(feature = "rayon"))]
             {
-                table.way_costs.reserve(expected_way_len - table.way_costs.len());
+                table
+                    .way_costs
+                    .reserve(expected_way_len - table.way_costs.len());
                 let mut way_buf = vec![0i32; lookups.way.names.len()];
                 let mut ev = ProfileEvaluator::new(profile, &lookups.way, &lookups.node);
                 for desc_bytes in remaining {
@@ -521,7 +529,9 @@ impl RoutingGraph {
 
         if table.node_costs.len() < expected_node_len {
             let start_node = table.node_costs.len() / 4;
-            table.node_costs.reserve(expected_node_len - table.node_costs.len());
+            table
+                .node_costs
+                .reserve(expected_node_len - table.node_costs.len());
             let crossing_tag_idx = lookups.node.get_name_idx("estimated_crossing_class");
             let mut node_buf = vec![0i32; lookups.node.names.len()];
             let mut ev = ProfileEvaluator::new(profile, &lookups.way, &lookups.node);
@@ -614,7 +624,11 @@ impl RoutingGraph {
     /// Returns the precomputed outgoing edge slice offset and count for a node ID.
     #[inline(always)]
     pub fn get_node_edge_slice(&self, s_id: u64) -> (u32, u16) {
-        let default_start = if self.has_cell_provider() { u32::MAX } else { 0 };
+        let default_start = if self.has_cell_provider() {
+            u32::MAX
+        } else {
+            0
+        };
         self.node_edge_offsets
             .get(&s_id)
             .copied()
@@ -657,12 +671,13 @@ impl RoutingGraph {
 
     fn insert_or_update_edge(&mut self, s_id: u64, edge: GraphEdge) {
         if let Some(&(start, count)) = self.node_edge_offsets.get(&s_id) {
-            let slice =
-                &mut self.flat_edges[start as usize..(start as usize + count as usize)];
+            let slice = &mut self.flat_edges[start as usize..(start as usize + count as usize)];
             if let Some(existing) = slice.iter_mut().find(|e| {
                 e.target_id == edge.target_id
                     && e.is_reverse == edge.is_reverse
-                    && (e.desc_id == edge.desc_id || e.desc_id == NO_DESC || edge.desc_id == NO_DESC)
+                    && (e.desc_id == edge.desc_id
+                        || e.desc_id == NO_DESC
+                        || edge.desc_id == NO_DESC)
             }) {
                 if existing.geom_len == 0 && edge.geom_len > 0 {
                     existing.geom_start = edge.geom_start;
@@ -1007,16 +1022,14 @@ impl RoutingGraph {
                 }
                 stack_len = edges.len();
             } else {
-                overflow_coords = Some(edges.iter().map(|e| (e.target_lon, e.target_lat)).collect());
+                overflow_coords =
+                    Some(edges.iter().map(|e| (e.target_lon, e.target_lat)).collect());
             }
         }
 
         if let Some(coords) = overflow_coords {
             for (t_ilon, t_ilat) in coords {
-                let cell = (
-                    t_ilon.div_euclid(CELL_GCD),
-                    t_ilat.div_euclid(CELL_GCD),
-                );
+                let cell = (t_ilon.div_euclid(CELL_GCD), t_ilat.div_euclid(CELL_GCD));
                 if cell != last_cell {
                     last_cell = cell;
                     self.ensure_cell_at_microdeg(t_ilon, t_ilat);
@@ -1024,10 +1037,7 @@ impl RoutingGraph {
             }
         } else {
             for &(t_ilon, t_ilat) in &stack_coords[..stack_len] {
-                let cell = (
-                    t_ilon.div_euclid(CELL_GCD),
-                    t_ilat.div_euclid(CELL_GCD),
-                );
+                let cell = (t_ilon.div_euclid(CELL_GCD), t_ilat.div_euclid(CELL_GCD));
                 if cell != last_cell {
                     last_cell = cell;
                     self.ensure_cell_at_microdeg(t_ilon, t_ilat);
@@ -1059,12 +1069,10 @@ impl RoutingGraph {
                 edge.has_target_tr = target_node.has_tr;
             }
             if edge.is_geometry_empty() {
-                edge.straight_dist = spatial::distance(
-                    s_pos,
-                    Point2D::new(edge.target_lon, edge.target_lat),
-                )
-                .round()
-                .max(1.0) as f32;
+                edge.straight_dist =
+                    spatial::distance(s_pos, Point2D::new(edge.target_lon, edge.target_lat))
+                        .round()
+                        .max(1.0) as f32;
             }
             let target_cell_checked =
                 self.is_cell_checked_at_microdeg(edge.target_lon, edge.target_lat);
@@ -1228,10 +1236,14 @@ impl RoutingGraph {
                 let Some(desc_bytes) = e.description(self) else {
                     continue;
                 };
-                lookups.way.decode_into(way_lookup_buf, e.is_reverse, desc_bytes);
+                lookups
+                    .way
+                    .decode_into(way_lookup_buf, e.is_reverse, desc_bytes);
                 let mut passable = evaluator.evaluate_way(way_lookup_buf).costfactor < 9999.0;
                 if !passable {
-                    lookups.way.decode_into(way_lookup_buf, !e.is_reverse, desc_bytes);
+                    lookups
+                        .way
+                        .decode_into(way_lookup_buf, !e.is_reverse, desc_bytes);
                     passable = evaluator.evaluate_way(way_lookup_buf).costfactor < 9999.0;
                 }
                 if passable {
@@ -1521,12 +1533,10 @@ impl RoutingGraph {
                     edge.has_target_tr = target_node.has_tr;
                 }
                 if edge.is_geometry_empty() {
-                    edge.straight_dist = spatial::distance(
-                        s_pos,
-                        Point2D::new(edge.target_lon, edge.target_lat),
-                    )
-                    .round()
-                    .max(1.0) as f32;
+                    edge.straight_dist =
+                        spatial::distance(s_pos, Point2D::new(edge.target_lon, edge.target_lat))
+                            .round()
+                            .max(1.0) as f32;
                 }
                 let is_dead = match dead_end_parents.get(&edge.target_id) {
                     Some(&parent) => parent == s_id,
@@ -1560,8 +1570,11 @@ impl RoutingGraph {
                     flat_edges[i].target_edges_count = t_count;
                     let t_end = t_start as usize + t_count as usize;
                     let mut matched_rev = u32::MAX;
-                    for (rev_idx, rev_edge) in
-                        flat_edges.iter().enumerate().take(t_end).skip(t_start as usize)
+                    for (rev_idx, rev_edge) in flat_edges
+                        .iter()
+                        .enumerate()
+                        .take(t_end)
+                        .skip(t_start as usize)
                     {
                         if rev_edge.target_id == source_id {
                             if rev_edge.desc_id == desc_id && rev_edge.is_reverse != is_rev {

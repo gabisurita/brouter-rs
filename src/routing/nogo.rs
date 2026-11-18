@@ -182,7 +182,10 @@ pub struct ParsedLonLats {
 
 /// Parses BRouter's `lonlats` query string (`lon1,lat1[,d]|lon2,lat2[,d]|...`) and optional
 /// comma-separated `straight` indices into `(lon, lat)` waypoints and `direct_legs` flags.
-pub fn parse_lonlats(lonlats_str: &str, straight_str: Option<&str>) -> Result<ParsedLonLats, String> {
+pub fn parse_lonlats(
+    lonlats_str: &str,
+    straight_str: Option<&str>,
+) -> Result<ParsedLonLats, String> {
     let pairs: Vec<&str> = lonlats_str
         .split(['|', ';'])
         .filter(|s| !s.trim().is_empty())
@@ -377,10 +380,14 @@ pub fn distance_within_radius(
     radius: f64,
 ) -> f64 {
     let [kx, ky] = get_lon_lat_to_meter_scales((lat1 + lat2) >> 1);
-    let first_inside =
-        distance(Point2D::new(lon1, lat1), Point2D::new(center_lon, center_lat)) < radius;
-    let mut last_inside =
-        distance(Point2D::new(lon2, lat2), Point2D::new(center_lon, center_lat)) < radius;
+    let first_inside = distance(
+        Point2D::new(lon1, lat1),
+        Point2D::new(center_lon, center_lat),
+    ) < radius;
+    let mut last_inside = distance(
+        Point2D::new(lon2, lat2),
+        Point2D::new(center_lon, center_lat),
+    ) < radius;
 
     if first_inside {
         if last_inside {
@@ -395,8 +402,10 @@ pub fn distance_within_radius(
         + (lat2 - lat1) as f64 * (center_lat - lat1) as f64 * ky * ky)
         / total_segment_length;
 
-    let initial_to_center =
-        distance(Point2D::new(center_lon, center_lat), Point2D::new(lon1, lat1));
+    let initial_to_center = distance(
+        Point2D::new(center_lon, center_lat),
+        Point2D::new(lon1, lat1),
+    );
     let under_sqrt = (radius * radius
         - (initial_to_center * initial_to_center - initial_to_project * initial_to_project))
         .max(0.0);
@@ -577,10 +586,7 @@ pub fn check_segment_against_nogos(
 }
 
 /// Tests whether a polyline intersects any no-go area.
-pub fn check_polyline_against_nogos(
-    poly: &[Point3D],
-    nogos: &[InternalNogo],
-) -> NogoCheckResult {
+pub fn check_polyline_against_nogos(poly: &[Point3D], nogos: &[InternalNogo]) -> NogoCheckResult {
     if nogos.is_empty() || poly.len() < 2 {
         return NogoCheckResult::Pass { added_cost: 0 };
     }

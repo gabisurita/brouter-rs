@@ -112,10 +112,10 @@ fn detect_engine_and_style(path: &Path) -> (&'static str, &'static str) {
 
 fn pick_color(profile: &str) -> String {
     let color = match profile {
-        "Alt 0" => "#2563eb",                  // Blue
-        "Alt 1" => "#ea580c",                  // Orange
-        "Alt 2" => "#9333ea",                  // Purple
-        "Alt 3" => "#059669",                  // Emerald
+        "Alt 0" => "#2563eb",                   // Blue
+        "Alt 1" => "#ea580c",                   // Orange
+        "Alt 2" => "#9333ea",                   // Purple
+        "Alt 3" => "#059669",                   // Emerald
         "Fastbike" => "#dc2626",                // Red
         "Fastbike-lowtraffic" => "#2563eb",     // Blue
         "Fastbike-verylowtraffic" => "#7c3aed", // Purple
@@ -292,7 +292,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let short_route = if item.route_name.contains("Richmond") {
                 "Richmond -> Oxford (multi)"
             } else {
-                item.route_name.split(" -> ").last().unwrap_or(item.route_name)
+                item.route_name
+                    .split(" -> ")
+                    .last()
+                    .unwrap_or(item.route_name)
             };
             format!("{}: [{}] {}", short_route, item.engine, item.profile)
         } else {

@@ -4,6 +4,6 @@
 //! Shares a single preloaded regional graph across all tests to prevent
 //! duplicate memory allocations and guarantee bounded peak RSS (~3.2 GB).
 
-mod common;
 mod api;
+mod common;
 mod parity;

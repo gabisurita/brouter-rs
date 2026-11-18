@@ -117,11 +117,17 @@ impl<'a> ProfileEvaluator<'a> {
         node_lookups: &'a ContextLookups,
     ) -> Self {
         let mut way_vars = vec![0.0f32; profile.way_block.num_vars];
-        let copy_way_len = profile.way_block.min_write_idx.min(profile.global_values.len());
+        let copy_way_len = profile
+            .way_block
+            .min_write_idx
+            .min(profile.global_values.len());
         way_vars[..copy_way_len].copy_from_slice(&profile.global_values[..copy_way_len]);
 
         let mut node_vars = vec![0.0f32; profile.node_block.num_vars];
-        let copy_node_len = profile.node_block.min_write_idx.min(profile.global_values.len());
+        let copy_node_len = profile
+            .node_block
+            .min_write_idx
+            .min(profile.global_values.len());
         node_vars[..copy_node_len].copy_from_slice(&profile.global_values[..copy_node_len]);
 
         let node_foreign_var_0 = profile.node_block.foreign_var_indices().into_iter().next();

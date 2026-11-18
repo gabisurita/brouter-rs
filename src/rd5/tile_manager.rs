@@ -37,10 +37,7 @@ impl TileManager {
         Self::with_cache_capacity(segment_dir, DEFAULT_MAX_CACHED_SQUARES)
     }
 
-    pub fn with_cache_capacity<P: AsRef<Path>>(
-        segment_dir: P,
-        max_cached_squares: usize,
-    ) -> Self {
+    pub fn with_cache_capacity<P: AsRef<Path>>(segment_dir: P, max_cached_squares: usize) -> Self {
         Self {
             segment_dir: segment_dir.as_ref().to_path_buf(),
             files: HashMap::new(),

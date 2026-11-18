@@ -433,4 +433,3 @@ impl crate::graph::routing_graph::CellProvider for LazyRd5Provider {
         Ok(Some((mc, sq.elevation_type)))
     }
 }
-

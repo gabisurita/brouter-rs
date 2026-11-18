@@ -59,8 +59,8 @@ fn test_parse_lookups_dat() {
 
 #[test]
 fn test_parse_all_brouter_profiles() {
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to parse lookups.dat");
     let profiles_dir = repo_path("profiles");
 
     let mut profile_paths = Vec::new();
@@ -141,8 +141,8 @@ fn test_parse_all_brouter_profiles() {
 
 #[test]
 fn test_evaluate_profile_way_tags() {
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to parse lookups.dat");
     let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike");
 
@@ -194,11 +194,11 @@ fn test_evaluate_profile_way_tags() {
 
 #[test]
 fn test_profile_custom_params_and_no_start_way() {
-    use std::collections::HashMap;
     use brouter_rs::routing::cost::CarKinematicModel;
+    use std::collections::HashMap;
 
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to parse lookups.dat");
 
     let mut params = HashMap::new();
     params.insert("avoid_main_roads".to_string(), "8".to_string());
@@ -213,7 +213,8 @@ fn test_profile_custom_params_and_no_start_way() {
     // Check car-eco profile loads CarKinematicModel
     let car_eco = Profile::load_from_file(repo_path("profiles/car-eco.brf"), &lookups)
         .expect("Failed to load car-eco.brf");
-    let km = CarKinematicModel::from_profile(&car_eco).expect("Expected CarKinematicModel for car-eco");
+    let km =
+        CarKinematicModel::from_profile(&car_eco).expect("Expected CarKinematicModel for car-eco");
     assert!(!km.no_cost_factor);
     assert!((km.total_weight - 1640.0).abs() < 1e-3);
 
@@ -226,8 +227,8 @@ assign costfactor = 1
 ---context:node
 assign initialcost = 0
 "#;
-    let no_start_prof =
-        Profile::parse("no_start_test", no_start_src, &lookups).expect("Failed to parse no_start_test");
+    let no_start_prof = Profile::parse("no_start_test", no_start_src, &lookups)
+        .expect("Failed to parse no_start_test");
     assert_eq!(no_start_prof.no_start_ways.len(), 2);
 
     let hw_idx = lookups.way.get_name_idx("highway").unwrap();
@@ -242,8 +243,8 @@ assign initialcost = 0
 
 #[test]
 fn test_foreign_variable_resolution() {
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to parse lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to parse lookups.dat");
     let profile = |node_expr: &str| {
         let src = format!(
             "---context:global\nassign g = 1\n---context:way\nassign costfactor = 1\nassign w = 2\n---context:node\nassign initialcost = {node_expr}\n"
@@ -265,6 +266,7 @@ fn test_foreign_variable_resolution() {
     }
 
     let src = "---context:global\n---context:way\nassign costfactor = way:x\n---context:node\nassign initialcost = 0\n";
-    let err = Profile::parse("foreign_in_way", src, &lookups).expect_err("way context has no foreign context");
+    let err = Profile::parse("foreign_in_way", src, &lookups)
+        .expect_err("way context has no foreign context");
     assert!(err.contains("unknown foreign context: way"), "{err}");
 }

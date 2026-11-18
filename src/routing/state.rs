@@ -324,7 +324,6 @@ impl NodePool {
     }
 }
 
-
 /// Step recorded in the search history DAG for path backtracking.
 #[derive(Clone, Copy)]
 pub struct HistoryStep {
@@ -382,9 +381,8 @@ impl Pass0CostGuide {
 
     #[inline(always)]
     fn hash_pair(from_id: u64, to_id: u64) -> usize {
-        let h = from_id
-            .wrapping_mul(0x9E37_79B9_7F4A_7C15)
-            ^ to_id.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        let h =
+            from_id.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ to_id.wrapping_mul(0xBF58_476D_1CE4_E5B9);
         (h ^ (h >> 32)) as usize
     }
 

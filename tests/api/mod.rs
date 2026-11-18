@@ -94,11 +94,13 @@ async fn test_brouter_concurrent_queries() {
         return;
     };
 
-    let uri1 = "/brouter?lonlats=-0.143613,51.462414|-0.055296,51.544998&profile=fastbike&format=geojson";
+    let uri1 =
+        "/brouter?lonlats=-0.143613,51.462414|-0.055296,51.544998&profile=fastbike&format=geojson";
     let uri2 = "/brouter?lonlats=-0.143613,51.462414|-0.055296,51.544998&profile=fastbike-lowtraffic&format=geojson";
 
     let (res1, res2) = tokio::join!(
-        app.clone().oneshot(Request::builder().uri(uri1).body(Body::empty()).unwrap()),
+        app.clone()
+            .oneshot(Request::builder().uri(uri1).body(Body::empty()).unwrap()),
         app.oneshot(Request::builder().uri(uri2).body(Body::empty()).unwrap()),
     );
 
@@ -160,7 +162,11 @@ async fn test_brouter_multi_waypoint_endpoint() {
     let dist_delta = (dist - 87900.0).abs() / 87900.0 * 100.0;
     let cost_delta = (cost as f64 - 116249.0).abs() / 116249.0 * 100.0;
 
-    assert!(dist_delta <= 0.05, "Distance delta {:.3}% > 0.05%", dist_delta);
+    assert!(
+        dist_delta <= 0.05,
+        "Distance delta {:.3}% > 0.05%",
+        dist_delta
+    );
     assert!(cost_delta <= 0.05, "Cost delta {:.3}% > 0.05%", cost_delta);
 }
 
@@ -174,7 +180,12 @@ async fn test_brouter_alternative_routes_endpoint() {
     let uri_invalid = "/brouter?lonlats=-0.1400,51.4600|-0.0550,51.5450&profile=fastbike-lowtraffic&alternativeidx=4";
     let resp_invalid = app
         .clone()
-        .oneshot(Request::builder().uri(uri_invalid).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(uri_invalid)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp_invalid.status(), StatusCode::BAD_REQUEST);
@@ -183,7 +194,12 @@ async fn test_brouter_alternative_routes_endpoint() {
     let uri_alt1 = "/brouter?lonlats=-0.1400,51.4600|-0.0550,51.5450&profile=fastbike-lowtraffic&alternativeidx=1&format=geojson";
     let resp_alt1 = app
         .clone()
-        .oneshot(Request::builder().uri(uri_alt1).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(uri_alt1)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp_alt1.status(), StatusCode::OK);
@@ -235,18 +251,29 @@ async fn test_brouter_endpoint_with_nogos() {
     };
 
     // 1. Baseline route
-    let uri_base = "/brouter?lonlats=-0.143613,51.462414|-0.055296,51.544998&profile=fastbike&format=geojson";
+    let uri_base =
+        "/brouter?lonlats=-0.143613,51.462414|-0.055296,51.544998&profile=fastbike&format=geojson";
     let resp_base = app
         .clone()
-        .oneshot(Request::builder().uri(uri_base).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(uri_base)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 
     assert_eq!(resp_base.status(), StatusCode::OK);
     let body_base = resp_base.into_body().collect().await.unwrap().to_bytes();
     let json_base: serde_json::Value = serde_json::from_slice(&body_base).unwrap();
-    let base_cost = json_base["features"][0]["properties"]["cost"].as_str().unwrap().to_string();
-    let coords = json_base["features"][0]["geometry"]["coordinates"].as_array().unwrap();
+    let base_cost = json_base["features"][0]["properties"]["cost"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let coords = json_base["features"][0]["geometry"]["coordinates"]
+        .as_array()
+        .unwrap();
 
     let mid = &coords[coords.len() / 2];
     let mid_lon = mid[0].as_f64().unwrap();
@@ -258,14 +285,22 @@ async fn test_brouter_endpoint_with_nogos() {
         mid_lon, mid_lat
     );
     let resp_nogo = app
-        .oneshot(Request::builder().uri(&uri_nogo).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(&uri_nogo)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 
     assert_eq!(resp_nogo.status(), StatusCode::OK);
     let body_nogo = resp_nogo.into_body().collect().await.unwrap().to_bytes();
     let json_nogo: serde_json::Value = serde_json::from_slice(&body_nogo).unwrap();
-    let nogo_cost = json_nogo["features"][0]["properties"]["cost"].as_str().unwrap().to_string();
+    let nogo_cost = json_nogo["features"][0]["properties"]["cost"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     assert_ne!(base_cost, nogo_cost);
 }
@@ -300,7 +335,12 @@ async fn test_brouter_kml_voicehints_beeline_and_custom_profile() {
         "/brouter?lonlats=-0.143613,51.462414;-0.055296,51.544998&profile=fastbike&format=geojson&timode=2";
     let resp_json = app
         .clone()
-        .oneshot(Request::builder().uri(uri_json).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(uri_json)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp_json.status(), StatusCode::OK);
@@ -316,7 +356,12 @@ async fn test_brouter_kml_voicehints_beeline_and_custom_profile() {
         "/brouter?lonlats=-0.143613,51.462414,d|-0.055296,51.544998&profile=fastbike&format=geojson";
     let resp_beeline = app
         .clone()
-        .oneshot(Request::builder().uri(uri_beeline).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(uri_beeline)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp_beeline.status(), StatusCode::OK);
@@ -363,9 +408,13 @@ async fn test_brouter_kml_voicehints_beeline_and_custom_profile() {
     let uri_custom =
         "/brouter?lonlats=-0.143613,51.462414|-0.055296,51.544998&profile=custom_my_fastbike&format=geojson";
     let resp_custom = app
-        .oneshot(Request::builder().uri(uri_custom).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri(uri_custom)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp_custom.status(), StatusCode::OK);
 }
-

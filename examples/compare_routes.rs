@@ -120,12 +120,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut graph = if lazy_mode {
         println!("\n=======================================================");
         println!("Initializing lazy on-demand cell provider (0 preloaded cells)...");
-        let reader = std::sync::Arc::new(
-            brouter_rs::rd5::rd5_slice::FileRd5SegmentReader::new("data/segments4"),
-        );
-        let provider = std::sync::Arc::new(
-            brouter_rs::rd5::rd5_slice::LazyRd5Provider::new(reader),
-        );
+        let reader = std::sync::Arc::new(brouter_rs::rd5::rd5_slice::FileRd5SegmentReader::new(
+            "data/segments4",
+        ));
+        let provider =
+            std::sync::Arc::new(brouter_rs::rd5::rd5_slice::LazyRd5Provider::new(reader));
         RoutingGraph::with_cell_provider(provider)
     } else {
         println!("\n=======================================================");
@@ -166,7 +165,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for bench_route in &benchmark_routes {
         println!("\n=======================================================");
-        println!("Processing route: {} ({})", bench_route.title, bench_route.name);
+        println!(
+            "Processing route: {} ({})",
+            bench_route.title, bench_route.name
+        );
 
         let mut route_rows: Vec<ParityRow> = Vec::new();
         for prof_name in &profiles {
@@ -184,7 +186,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "fastbike-verylowtraffic" => "verylowtraffic",
                 other => other,
             };
-            let fixture_path = format!("fixtures/brouter_de/{}_{}.json", bench_route.name, fixture_name);
+            let fixture_path = format!(
+                "fixtures/brouter_de/{}_{}.json",
+                bench_route.name, fixture_name
+            );
             let baseline = parse_fixture_stats(Path::new(&fixture_path));
 
             let t_route = Instant::now();
@@ -209,14 +214,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             match result {
                 Ok(route) => {
-                    let out_path = format!("target/routes/{}_{}.geojson", bench_route.name, prof_name);
+                    let out_path =
+                        format!("target/routes/{}_{}.geojson", bench_route.name, prof_name);
                     let geojson = route.to_geojson(prof_name);
                     let _ = fs::write(&out_path, geojson);
 
                     if let Some((b_dist, b_time, b_cost, b_asc)) = baseline {
                         let dist_delta = (route.total_distance_m - b_dist).abs() / b_dist * 100.0;
-                        let time_delta =
-                            (route.total_time_s as f64 - b_time as f64).abs() / b_time as f64 * 100.0;
+                        let time_delta = (route.total_time_s as f64 - b_time as f64).abs()
+                            / b_time as f64
+                            * 100.0;
                         let cost_delta =
                             (route.total_cost as f64 - b_cost as f64).abs() / b_cost as f64 * 100.0;
 
@@ -312,7 +319,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match result {
             Ok(route) => {
-                let out_path = format!("target/routes/london_brighton_fastbike-lowtraffic_alt{}.geojson", alt_idx);
+                let out_path = format!(
+                    "target/routes/london_brighton_fastbike-lowtraffic_alt{}.geojson",
+                    alt_idx
+                );
                 let geojson = route.to_geojson("fastbike-lowtraffic");
                 let _ = fs::write(&out_path, geojson);
 
@@ -379,7 +389,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
     println!("=======================================================");
-    println!("One-time unified regional graph load: {:.2} ms (0 ms per route)", graph_load_ms);
+    println!(
+        "One-time unified regional graph load: {:.2} ms (0 ms per route)",
+        graph_load_ms
+    );
     println!("=======================================================\n");
 
     // Parity Enforcement

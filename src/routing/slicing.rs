@@ -8,10 +8,7 @@ use crate::types::{Distance, ElevationQuarterMeters, Point2D, Point3D};
 
 /// Projects `cross` onto `poly`, returning
 /// `(segment_index, projected_point, cumulative_distance_to_projection)`.
-pub fn find_crosspoint_projection(
-    poly: &[Point3D],
-    cross: Point2D,
-) -> (usize, Point3D, Distance) {
+pub fn find_crosspoint_projection(poly: &[Point3D], cross: Point2D) -> (usize, Point3D, Distance) {
     if poly.len() <= 1 {
         let pt = poly
             .first()
@@ -73,14 +70,15 @@ pub fn find_crosspoint_projection(
     let seg_len = spatial::distance(poly[best_idx].to_2d(), poly[best_idx + 1].to_2d());
     cum_dist += seg_len * best_frac;
 
-    (best_idx, Point3D::new(cross.lon, cross.lat, best_elev), cum_dist)
+    (
+        best_idx,
+        Point3D::new(cross.lon, cross.lat, best_elev),
+        cum_dist,
+    )
 }
 
 /// Slices an edge polyline starting from `crosspoint` to the end.
-pub fn slice_from_crosspoint(
-    poly: &[Point3D],
-    cross: Point2D,
-) -> Vec<Point3D> {
+pub fn slice_from_crosspoint(poly: &[Point3D], cross: Point2D) -> Vec<Point3D> {
     let (idx, cross_pt, _) = find_crosspoint_projection(poly, cross);
     let mut sliced = Vec::with_capacity(poly.len() - idx + 1);
     sliced.push(cross_pt);
@@ -96,10 +94,7 @@ pub fn slice_from_crosspoint(
 }
 
 /// Slices an edge polyline starting from beginning up to `crosspoint`.
-pub fn slice_to_crosspoint(
-    poly: &[Point3D],
-    cross: Point2D,
-) -> Vec<Point3D> {
+pub fn slice_to_crosspoint(poly: &[Point3D], cross: Point2D) -> Vec<Point3D> {
     let (idx, cross_pt, _) = find_crosspoint_projection(poly, cross);
     let mut sliced = Vec::with_capacity(idx + 2);
     for pt in &poly[..=idx] {

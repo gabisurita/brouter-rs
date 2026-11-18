@@ -10,22 +10,20 @@
 //! 2-pass guided A* routing search with dynamic cost-cutting, elevation hysteresis,
 //! kinematic speed/power modeling, and GeoJSON route generation.
 
-
-
 use std::collections::HashSet;
 
 use super::cost::{CarKinematicModel, KinematicConfig, ModeFlags};
 use super::nogo::{
-    check_polyline_against_nogos, check_segment_against_nogos, clean_nogos, InternalNogo,
-    NogoArea, NogoCheckResult,
+    check_polyline_against_nogos, check_segment_against_nogos, clean_nogos, InternalNogo, NogoArea,
+    NogoCheckResult,
 };
 use super::path::{
     CrossingConfig, ElevationConfig, KinematicPrePath, PathState, SectionInput, StdPathCalculator,
 };
 use super::slicing::{slice_between_crosspoints, slice_from_crosspoint, slice_to_crosspoint};
 use super::state::{
-    CandidateState, EdgeState, FastHashMap, HeapItem, HistoryStep, NodePool,
-    Pass0CostGuide, QuadHeap, SearchNode, SearchTrack, TrackStep,
+    CandidateState, EdgeState, FastHashMap, HeapItem, HistoryStep, NodePool, Pass0CostGuide,
+    QuadHeap, SearchNode, SearchTrack, TrackStep,
 };
 use crate::dsl::evaluator::ProfileEvaluator;
 use crate::dsl::lookups::LookupData;
@@ -39,9 +37,7 @@ use crate::graph::spatial::{
 use crate::rd5::micro_cache::DecodedTurnRestriction;
 use crate::types::{Cost, Distance, Joules, NodeId, Point2D, Point3D, Seconds};
 
-pub use super::track::{
-    post_elevation_check, RoutePoint, RouteResult, MESSAGES_HEADER,
-};
+pub use super::track::{post_elevation_check, RoutePoint, RouteResult, MESSAGES_HEADER};
 pub use super::voice::{TransportMode, VoiceHint, VoiceHintProcessor, WayMessage};
 
 /// Extended routing options for multi-waypoint queries (`RoutingParamCollector`).
@@ -400,12 +396,7 @@ impl AStarRouter {
         for i in 0..waypoints.len() - 1 {
             let is_direct = options.direct_legs.get(i).copied().unwrap_or(false);
             let leg = if is_direct {
-                self.find_beeline_leg(
-                    waypoints[i],
-                    waypoints[i + 1],
-                    &kinematic_cfg,
-                    timode,
-                )
+                self.find_beeline_leg(waypoints[i], waypoints[i + 1], &kinematic_cfg, timode)
             } else {
                 let leg_start_dir = if i == 0 {
                     options.start_direction
@@ -538,10 +529,16 @@ impl AStarRouter {
                 g_mut.reset_for_pass([0, 0, 0, 0]);
             }
         }
-        let start_pt = Point2D::new(spatial::lon_to_ilon(start_lon), spatial::lat_to_ilat(start_lat));
-        let target_pt = Point2D::new(spatial::lon_to_ilon(target_lon), spatial::lat_to_ilat(target_lat));
-        let dir_start_to_target = start_direction
-            .unwrap_or_else(|| spatial::get_direction(start_pt, target_pt));
+        let start_pt = Point2D::new(
+            spatial::lon_to_ilon(start_lon),
+            spatial::lat_to_ilat(start_lat),
+        );
+        let target_pt = Point2D::new(
+            spatial::lon_to_ilon(target_lon),
+            spatial::lat_to_ilat(target_lat),
+        );
+        let dir_start_to_target =
+            start_direction.unwrap_or_else(|| spatial::get_direction(start_pt, target_pt));
         let dir_target_to_start = spatial::get_direction(target_pt, start_pt);
 
         let radii: &[f64] = if graph.has_cell_provider() {
@@ -669,7 +666,8 @@ impl AStarRouter {
                         g_mut.reset_for_pass(endpoint_ids);
                     }
                 }
-                let mut cost_guide = Pass0CostGuide::new(pass0_track.steps.len(), pass0_track.total_cost);
+                let mut cost_guide =
+                    Pass0CostGuide::new(pass0_track.steps.len(), pass0_track.total_cost);
                 for step in &pass0_track.steps {
                     cost_guide.record_edge(step.from_node_id, step.node_id, step.cost);
                 }
@@ -760,7 +758,9 @@ impl AStarRouter {
                     }
                 }
                 for pt in &route.points {
-                    let id = Point2D::new(spatial::lon_to_ilon(pt.lon), spatial::lat_to_ilat(pt.lat)).node_id();
+                    let id =
+                        Point2D::new(spatial::lon_to_ilon(pt.lon), spatial::lat_to_ilat(pt.lat))
+                            .node_id();
                     ref_nodes.insert(id);
                 }
             }
@@ -783,22 +783,11 @@ impl AStarRouter {
         params: &SearchPassParams<'a>,
         limits: &SearchLimits,
     ) -> Result<SearchTrack, String> {
-        let mut ctx = SearchPassContext::new(
-            graph,
-            lookups,
-            profile,
-            configs,
-            params,
-        );
+        let mut ctx = SearchPassContext::new(graph, lookups, profile, configs, params);
 
         let total_edges = ctx.graph.total_edges;
-        let mut state = SearchPassState::new(
-            &ctx,
-            profile,
-            limits.max_cost,
-            total_edges,
-            limits.heap_cap,
-        );
+        let mut state =
+            SearchPassState::new(&ctx, profile, limits.max_cost, total_edges, limits.heap_cap);
         state.seed_pass(&ctx)?;
         state.run_search(&mut ctx)?;
         state.reconstruct_track(&ctx)
@@ -836,8 +825,8 @@ impl AStarRouter {
         let mut tmp_poly: Vec<Point3D> = Vec::new();
         let mut way_buf = vec![0i32; lookups.way.names.len()];
         let mut node_buf = vec![0i32; lookups.node.names.len()];
-        let mut retrack_eval = car_kinematic
-            .map(|_| ProfileEvaluator::new(profile, &lookups.way, &lookups.node));
+        let mut retrack_eval =
+            car_kinematic.map(|_| ProfileEvaluator::new(profile, &lookups.way, &lookups.node));
 
         for (s_i, step) in steps.iter().enumerate() {
             let mut step_way_cost = None;
@@ -847,7 +836,8 @@ impl AStarRouter {
             {
                 let edges = graph.get_edges(step.from_node_id);
                 let edge = if (step.edge_idx as usize) < edges.len()
-                    && (step.node_id == 0 || edges[step.edge_idx as usize].target_id == step.node_id)
+                    && (step.node_id == 0
+                        || edges[step.edge_idx as usize].target_id == step.node_id)
                 {
                     Some(&edges[step.edge_idx as usize])
                 } else {
@@ -884,10 +874,11 @@ impl AStarRouter {
                                     t_elev,
                                 );
                                 if tmp_poly.len() >= 2 {
-                                    let (best_idx, _, _) = super::slicing::find_crosspoint_projection(
-                                        &tmp_poly,
-                                        last_pt.to_2d(),
-                                    );
+                                    let (best_idx, _, _) =
+                                        super::slicing::find_crosspoint_projection(
+                                            &tmp_poly,
+                                            last_pt.to_2d(),
+                                        );
                                     if best_idx + 1 < tmp_poly.len() {
                                         endpoint_origin_ele2 = Some(tmp_poly[best_idx + 1].elev);
                                     }
@@ -896,7 +887,9 @@ impl AStarRouter {
                         }
                     }
                     if let Some(desc_bytes) = e.description(graph) {
-                        lookups.way.decode_into(&mut way_buf, e.is_reverse, desc_bytes);
+                        lookups
+                            .way
+                            .decode_into(&mut way_buf, e.is_reverse, desc_bytes);
                         way_kv_str = lookups.way.format_key_values(&way_buf);
                     }
                 }
@@ -1016,13 +1009,18 @@ impl AStarRouter {
 
             let target_node_kv = if step.node_id != 0 {
                 if let Some(target_node) = graph.nodes.get(&step.node_id) {
-                    if let Some(node_desc) = graph.node_descriptions.get(target_node.node_desc_id as usize) {
+                    if let Some(node_desc) = graph
+                        .node_descriptions
+                        .get(target_node.node_desc_id as usize)
+                    {
                         let node_access = if car_kinematic.is_some() {
                             false
                         } else {
                             step_way_cost.is_some_and(|wc| wc.nodeaccessgranted)
                         };
-                        lookups.node.decode_into(&mut node_buf, node_access, node_desc);
+                        lookups
+                            .node
+                            .decode_into(&mut node_buf, node_access, node_desc);
                         lookups.node.format_key_values(&node_buf)
                     } else {
                         String::new()
@@ -1051,9 +1049,7 @@ impl AStarRouter {
                 let mut turn_cost_int = 0i32;
 
                 if let Some(last_pos) = last_pt_pos {
-                    let seg_d = distance(last_pos, pt.to_2d())
-                        .round()
-                        .max(1.0);
+                    let seg_d = distance(last_pos, pt.to_2d()).round().max(1.0);
                     seg_dist_int = seg_d as i32;
                     cum_dist += seg_d;
 
@@ -1179,14 +1175,15 @@ impl AStarRouter {
             if let (Some(car_model), Some(ref mut eval)) = (car_kinematic, retrack_eval.as_mut()) {
                 if step.node_id != 0 {
                     if let Some(target_node) = graph.nodes.get(&step.node_id) {
-                        if let Some(node_desc) = graph.node_descriptions.get(target_node.node_desc_id as usize) {
+                        if let Some(node_desc) = graph
+                            .node_descriptions
+                            .get(target_node.node_desc_id as usize)
+                        {
                             eval.evaluate_way(&way_buf);
                             lookups.node.decode_into(&mut node_buf, false, node_desc);
                             let node_res = eval.evaluate_node(&node_buf);
-                            car_model.cut_ekin(
-                                &mut detail_state.ekin,
-                                (node_res.maxspeed as f64) / 3.6,
-                            );
+                            car_model
+                                .cut_ekin(&mut detail_state.ekin, (node_res.maxspeed as f64) / 3.6);
                         }
                     }
                 }
@@ -1237,9 +1234,10 @@ impl AStarRouter {
             let transport_mode = TransportMode::from_flags(modes.car, modes.bike);
             let catching_range =
                 profile.get_global_var("turnInstructionCatchingRange", 40.0) as f64;
-            let explicit_roundabouts = profile
-                .get_global_var("turnInstructionRoundabouts", if modes.foot { 0.0 } else { 1.0 })
-                != 0.0;
+            let explicit_roundabouts = profile.get_global_var(
+                "turnInstructionRoundabouts",
+                if modes.foot { 0.0 } else { 1.0 },
+            ) != 0.0;
 
             let vproc = VoiceHintProcessor::new(explicit_roundabouts, transport_mode);
             let raw_hints = vproc.process(inputs);
@@ -1412,7 +1410,10 @@ impl<'a> SearchPassState<'a> {
             evaluator: ProfileEvaluator::new(profile, &ctx.lookups.way, &ctx.lookups.node),
             open_set: QuadHeap::with_capacity(heap_cap),
             node_pool: NodePool::with_capacity(heap_cap),
-            edge_heads: FastHashMap::with_capacity_and_hasher(heap_cap.min(32_768), Default::default()),
+            edge_heads: FastHashMap::with_capacity_and_hasher(
+                heap_cap.min(32_768),
+                Default::default(),
+            ),
             closed_edges: vec![0u64; num_edge_words],
             edge_states_pool: Vec::with_capacity(heap_cap.min(65_536)),
             edge_states_free: Vec::with_capacity(heap_cap.min(16_384)),
@@ -1545,10 +1546,10 @@ impl<'a> SearchPassState<'a> {
         let mut fwd_queue: Vec<u64> = Vec::new();
 
         let enqueue_finalized = |u_id: u64,
-                                     fwd_finalized_idx: &mut FastHashMap<u64, u32>,
-                                     fwd_finalized_nodes: &mut Vec<u64>,
-                                     rev_head: &mut Vec<u32>,
-                                     fwd_queue: &mut Vec<u64>|
+                                 fwd_finalized_idx: &mut FastHashMap<u64, u32>,
+                                 fwd_finalized_nodes: &mut Vec<u64>,
+                                 rev_head: &mut Vec<u32>,
+                                 fwd_queue: &mut Vec<u64>|
          -> u32 {
             if let Some(&idx) = fwd_finalized_idx.get(&u_id) {
                 idx
@@ -1567,7 +1568,9 @@ impl<'a> SearchPassState<'a> {
             if sn.node_id == 0 || (sn.edge_idx != u32::MAX && self.is_edge_closed(sn.edge_idx)) {
                 continue;
             }
-            if pass1_bound.is_some_and(|(_, max_cost)| sn.cost.saturating_add(sn.air_dist) > max_cost) {
+            if pass1_bound
+                .is_some_and(|(_, max_cost)| sn.cost.saturating_add(sn.air_dist) > max_cost)
+            {
                 continue;
             }
             let u_id = sn.node_id;
@@ -1845,13 +1848,8 @@ impl<'a> SearchPassState<'a> {
                             .get(&t_id)
                             .map(|n| n.selev)
                             .unwrap_or(i16::MIN);
-                        let full_poly = edge.polyline(
-                            ctx.graph,
-                            s_node_pt.lon,
-                            s_node_pt.lat,
-                            s_elev,
-                            t_elev,
-                        );
+                        let full_poly =
+                            edge.polyline(ctx.graph, s_node_pt.lon, s_node_pt.lat, s_elev, t_elev);
                         if let Some(sliced) = slice_between_crosspoints(
                             &full_poly,
                             ctx.start_mwp.crosspoint,
@@ -2022,17 +2020,9 @@ impl<'a> SearchPassState<'a> {
                         let t_node = ctx.graph.nodes.get(&t_id);
                         let s_elev = s_node.map(|n| n.selev).unwrap_or(i16::MIN);
                         let t_elev = t_node.map(|n| n.selev).unwrap_or(i16::MIN);
-                        let full_poly = edge.polyline(
-                            ctx.graph,
-                            s_node_pt.lon,
-                            s_node_pt.lat,
-                            s_elev,
-                            t_elev,
-                        );
-                        let sliced = slice_from_crosspoint(
-                            &full_poly,
-                            ctx.start_mwp.crosspoint,
-                        );
+                        let full_poly =
+                            edge.polyline(ctx.graph, s_node_pt.lon, s_node_pt.lat, s_elev, t_elev);
+                        let sliced = slice_from_crosspoint(&full_poly, ctx.start_mwp.crosspoint);
                         if sliced.len() >= 2 {
                             let nogo_res = check_polyline_against_nogos(&sliced, ctx.nogos);
                             let nogo_cost = match nogo_res {
@@ -2049,15 +2039,14 @@ impl<'a> SearchPassState<'a> {
                                 is_detail: false,
                                 pre_paths: &[],
                             };
-                            let (mut cost, _, _, _, penultimate_pt) =
-                                process_polyline(
-                                    &sliced,
-                                    &mut path_state,
-                                    &mut path_selev,
-                                    way_cost,
-                                    &ctx.routing_configs(),
-                                    &edge_ctx,
-                                );
+                            let (mut cost, _, _, _, penultimate_pt) = process_polyline(
+                                &sliced,
+                                &mut path_state,
+                                &mut path_selev,
+                                way_cost,
+                                &ctx.routing_configs(),
+                                &edge_ctx,
+                            );
                             if cost == u32::MAX {
                                 continue;
                             }
@@ -2074,7 +2063,9 @@ impl<'a> SearchPassState<'a> {
                                 if ctx.force_start_direction && diff > 90.0 {
                                     dir_penalty = 10_000;
                                 } else if diff > 45.0 {
-                                    dir_penalty = ((diff - 45.0) * (way_cost.turncost as f64).max(50.0) / 90.0) as u32;
+                                    dir_penalty =
+                                        ((diff - 45.0) * (way_cost.turncost as f64).max(50.0)
+                                            / 90.0) as u32;
                                 }
                             }
 
@@ -2138,10 +2129,7 @@ impl<'a> SearchPassState<'a> {
                                 }
                             }
 
-                            let air_dist = distance(
-                                t_node_pt,
-                                ctx.target_mwp.crosspoint,
-                            );
+                            let air_dist = distance(t_node_pt, ctx.target_mwp.crosspoint);
                             let priority = total_cost + (air_dist * ctx.air_distance_factor) as u32;
 
                             let (down_div, up_div) = if ctx.car_kinematic.is_some() {
@@ -2366,7 +2354,8 @@ impl<'a> SearchPassState<'a> {
                 }
                 if let Some(edge_entry) = self.get_edge_state(curr.edge_idx) {
                     let mut dominated = false;
-                    let curr_cand = CandidateState::new(curr.cost, curr.path_state.ehbd, curr.path_state.ehbu);
+                    let curr_cand =
+                        CandidateState::new(curr.cost, curr.path_state.ehbd, curr.path_state.ehbu);
                     for cand in edge_entry.candidates() {
                         if cand.cost < curr.cost
                             && curr_cand.is_definitely_worse_than(cand, curr.down_div, curr.up_div)
@@ -2427,31 +2416,33 @@ impl<'a> SearchPassState<'a> {
                 break;
             }
 
-            let edges = ctx.graph.get_edges_by_slice(curr.out_edges_start, curr.out_edges_count);
+            let edges = ctx
+                .graph
+                .get_edges_by_slice(curr.out_edges_start, curr.out_edges_count);
             if edges.is_empty() {
                 continue;
             }
 
             // Check if curr node has turn restrictions (only if profile considers TRs and not start node)
-            let curr_trs: &[DecodedTurnRestriction] = if ctx.consider_tr
-                && curr.has_tr
-                && curr.from_node_id != 0
-            {
-                ctx.graph
-                    .turn_restrictions
-                    .get(&curr.node_id)
-                    .map(|v| v.as_slice())
-                    .unwrap_or(&[])
-            } else {
-                &[]
-            };
+            let curr_trs: &[DecodedTurnRestriction] =
+                if ctx.consider_tr && curr.has_tr && curr.from_node_id != 0 {
+                    ctx.graph
+                        .turn_restrictions
+                        .get(&curr.node_id)
+                        .map(|v| v.as_slice())
+                        .unwrap_or(&[])
+                } else {
+                    &[]
+                };
 
             // Check if curr node has estimated_crossing_class (only if crossing evaluation is active)
             let crossing_class = if ctx.crossing_cfg.consider_crossing
                 && curr.node_desc_id != NO_DESC
                 && curr.priority_classifier >= ctx.crossing_cfg.crossing_prio_h
             {
-                if let Some(nc) = get_node_cost(&ctx.costs.node_costs, curr.node_desc_id, false, false) {
+                if let Some(nc) =
+                    get_node_cost(&ctx.costs.node_costs, curr.node_desc_id, false, false)
+                {
                     if nc.crossing_class > 0 {
                         Some(nc.crossing_class)
                     } else {
@@ -2625,7 +2616,14 @@ impl<'a> SearchPassState<'a> {
                 return;
             }
         } else {
-            edge.fill_polyline(ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
+            edge.fill_polyline(
+                ctx.graph,
+                &mut self.poly_buf,
+                curr.ilon,
+                curr.ilat,
+                curr.selev,
+                t_elev,
+            );
             if self.poly_buf.len() < 2 {
                 return;
             }
@@ -2647,12 +2645,16 @@ impl<'a> SearchPassState<'a> {
 
         if is_target_link {
             if is_straight {
-                edge.fill_polyline(ctx.graph, &mut self.poly_buf, curr.ilon, curr.ilat, curr.selev, t_elev);
+                edge.fill_polyline(
+                    ctx.graph,
+                    &mut self.poly_buf,
+                    curr.ilon,
+                    curr.ilat,
+                    curr.selev,
+                    t_elev,
+                );
             }
-            let sliced = slice_to_crosspoint(
-                &self.poly_buf,
-                ctx.target_mwp.crosspoint,
-            );
+            let sliced = slice_to_crosspoint(&self.poly_buf, ctx.target_mwp.crosspoint);
             if sliced.len() >= 2 {
                 let nogo_res = check_polyline_against_nogos(&sliced, ctx.nogos);
                 let nogo_cost = match nogo_res {
@@ -2933,7 +2935,8 @@ impl<'a> SearchPassState<'a> {
                 } else {
                     None
                 }
-            } else if let Some(node_desc) = ctx.graph.node_descriptions.get(target_desc_id as usize) {
+            } else if let Some(node_desc) = ctx.graph.node_descriptions.get(target_desc_id as usize)
+            {
                 if let Some(desc_bytes) = edge.description(ctx.graph) {
                     ctx.lookups.way.decode_into(
                         &mut self.way_lookup_buf,
@@ -2942,11 +2945,9 @@ impl<'a> SearchPassState<'a> {
                     );
                     self.evaluator.evaluate_way(&self.way_lookup_buf);
                 }
-                ctx.lookups.node.decode_into(
-                    &mut self.node_lookup_buf,
-                    access_granted,
-                    node_desc,
-                );
+                ctx.lookups
+                    .node
+                    .decode_into(&mut self.node_lookup_buf, access_granted, node_desc);
                 Some(self.evaluator.evaluate_node(&self.node_lookup_buf))
             } else {
                 None
@@ -2956,10 +2957,7 @@ impl<'a> SearchPassState<'a> {
                     return; // blocked node
                 }
                 if let Some(car_model) = ctx.car_kinematic {
-                    car_model.cut_ekin(
-                        &mut path_state.ekin,
-                        (node_res.maxspeed as f64) / 3.6,
-                    );
+                    car_model.cut_ekin(&mut path_state.ekin, (node_res.maxspeed as f64) / 3.6);
                 }
                 edge_cost += node_res.initialcost as u32;
             }
@@ -3054,9 +3052,7 @@ impl<'a> SearchPassState<'a> {
         new_cand.history_idx = h_idx;
 
         let edge_entry = self.get_or_create_edge_state(edge.edge_idx);
-        edge_entry.retain(|cand| {
-            !cand.is_definitely_worse_than(&new_cand, down_div, up_div)
-        });
+        edge_entry.retain(|cand| !cand.is_definitely_worse_than(&new_cand, down_div, up_div));
 
         edge_entry.push(new_cand);
 
@@ -3159,7 +3155,10 @@ fn process_straight_edge(
         if configs.car_kinematic.is_some() || need_crossing {
             calc_angle(edge_ctx.prev_point, s_pt.to_2d(), t_pt.to_2d())
         } else if way_cost.turncost > 0.0 {
-            (0.0, spatial::calc_cos_angle(edge_ctx.prev_point, s_pt.to_2d(), t_pt.to_2d()))
+            (
+                0.0,
+                spatial::calc_cos_angle(edge_ctx.prev_point, s_pt.to_2d(), t_pt.to_2d()),
+            )
         } else {
             (0.0, 1.0)
         }
@@ -3384,11 +3383,5 @@ fn process_polyline(
         edge_ctx.prev_point
     };
 
-    (
-        edge_cost,
-        edge_dist,
-        edge_time,
-        edge_energy,
-        penultimate_pt,
-    )
+    (edge_cost, edge_dist, edge_time, edge_energy, penultimate_pt)
 }

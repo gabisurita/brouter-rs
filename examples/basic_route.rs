@@ -38,7 +38,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     })?;
 
     println!("Route computed:");
-    println!("  Distance:        {:.2} km", route.total_distance_m / 1000.0);
+    println!(
+        "  Distance:        {:.2} km",
+        route.total_distance_m / 1000.0
+    );
     println!("  Travel time:     {:.1} min", route.total_time_s / 60.0);
     println!("  Filtered ascend: {:.0} m", route.filtered_ascend_m);
     println!("  Total cost:      {}", route.total_cost);

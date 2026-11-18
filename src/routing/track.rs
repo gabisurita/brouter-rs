@@ -15,8 +15,8 @@
 use super::cost::{KinematicConfig, GRAVITY};
 use super::voice::{aggregate_messages, VoiceHint, WayMessage};
 use crate::graph::routing_graph::RoutingGraph;
-use crate::graph::spatial::{ self, distance };
-use crate::types::{ Cost, Distance, Joules, Point2D, Seconds };
+use crate::graph::spatial::{self, distance};
+use crate::types::{Cost, Distance, Joules, Point2D, Seconds};
 
 pub const MESSAGES_HEADER: [&str; 13] = [
     "Longitude",
@@ -146,8 +146,10 @@ impl RouteResult {
         }
 
         self.points.truncate(new_self_len);
-        self.messages.truncate(new_self_len.min(self.messages.len()));
-        self.voice_hints.retain(|vh| vh.index_in_track < new_self_len);
+        self.messages
+            .truncate(new_self_len.min(self.messages.len()));
+        self.voice_hints
+            .retain(|vh| vh.index_in_track < new_self_len);
         if let Some(last) = self.points.last() {
             self.total_distance_m = last.distance_from_start_m;
             self.total_time_s = last.time_from_start_s;
@@ -275,9 +277,7 @@ impl RouteResult {
                     (self.points[key - 1].elevation_m - self.points[key].elevation_m)
                         / (value as f64)
                 };
-                let f_roll = kinematic_cfg.total_mass
-                    * GRAVITY
-                    * (kinematic_cfg.c_r + incline);
+                let f_roll = kinematic_cfg.total_mass * GRAVITY * (kinematic_cfg.c_r + incline);
                 let spd = (speed_min as f64) / 3.6;
                 add_energy = (value as f64) * (kinematic_cfg.s_c_x * spd * spd + f_roll);
             }
@@ -520,12 +520,7 @@ impl RouteResult {
     </trkseg>
   </trk>
 </gpx>"#,
-            dist_km,
-            time_min,
-            self.filtered_ascend_m,
-            dist_km,
-            time_min,
-            self.filtered_ascend_m,
+            dist_km, time_min, self.filtered_ascend_m, dist_km, time_min, self.filtered_ascend_m,
         )
     }
 

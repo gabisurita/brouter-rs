@@ -180,11 +180,21 @@ pub async fn assert_route_parity(
 
     let b_set: std::collections::HashSet<(i64, i64)> = b_coords
         .iter()
-        .map(|&(lon, lat)| ((lon * 100_000.0).round() as i64, (lat * 100_000.0).round() as i64))
+        .map(|&(lon, lat)| {
+            (
+                (lon * 100_000.0).round() as i64,
+                (lat * 100_000.0).round() as i64,
+            )
+        })
         .collect();
     let rs_set: std::collections::HashSet<(i64, i64)> = rs_coords
         .iter()
-        .map(|&(lon, lat)| ((lon * 100_000.0).round() as i64, (lat * 100_000.0).round() as i64))
+        .map(|&(lon, lat)| {
+            (
+                (lon * 100_000.0).round() as i64,
+                (lat * 100_000.0).round() as i64,
+            )
+        })
         .collect();
     let overlap_count = b_set.intersection(&rs_set).count();
     let overlap_pct = if b_set.is_empty() {
@@ -244,13 +254,9 @@ pub async fn assert_route_parity(
     );
 
     assert_eq!(
-        ascend as i32,
-        b_asc as i32,
+        ascend as i32, b_asc as i32,
         "{} [{}]: Ascend mismatch (rsrouter: {:.0}m, brouter.de: {:.0}m)",
-        route_name,
-        profile,
-        ascend,
-        b_asc
+        route_name, profile, ascend, b_asc
     );
 
     if min_coord_overlap_pct >= 99.99 {
@@ -275,9 +281,8 @@ pub async fn assert_route_parity(
             );
         }
     } else {
-        let pt_delta_pct = (rs_coords.len() as f64 - b_coords.len() as f64).abs()
-            / b_coords.len() as f64
-            * 100.0;
+        let pt_delta_pct =
+            (rs_coords.len() as f64 - b_coords.len() as f64).abs() / b_coords.len() as f64 * 100.0;
         assert!(
             pt_delta_pct <= 1.0,
             "{} [{}]: Point count delta {:.2}% exceeds 1.0% (rs: {}, br: {})",

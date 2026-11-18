@@ -8,8 +8,8 @@ use brouter_rs::dsl::evaluator::WayCostResult;
 use brouter_rs::dsl::lookups::LookupData;
 use brouter_rs::dsl::parser::Profile;
 use brouter_rs::graph::routing_graph::RoutingGraph;
-use brouter_rs::rd5::tile_manager::TileManager;
 use brouter_rs::graph::spatial::{distance, lat_to_ilat, lon_to_ilon, Point2D};
+use brouter_rs::rd5::tile_manager::TileManager;
 use brouter_rs::routing::cost::KinematicConfig;
 use brouter_rs::routing::nogo::NogoArea;
 use brouter_rs::routing::path::{ElevationConfig, PathState, SectionInput, StdPathCalculator};
@@ -110,8 +110,8 @@ fn test_elevation_hysteresis_and_cutoffs() {
         &SectionInput {
             dist: 100.0,
             delta_h_micros: 1_000_000,
-            cos_angle: 1.0, // straight turn
-            crossing_penalty: 0,   // no crossing penalty
+            cos_angle: 1.0,      // straight turn
+            crossing_penalty: 0, // no crossing penalty
             is_detail: true,
         },
     );
@@ -154,13 +154,16 @@ fn test_elevation_hysteresis_and_cutoffs() {
 fn test_real_full_route_generation() {
     let segment_path = repo_path("data/segments4/E0_N50.rd5");
     if !segment_path.exists() {
-        println!("Skipping real route test: {:?} does not exist", segment_path);
+        println!(
+            "Skipping real route test: {:?} does not exist",
+            segment_path
+        );
         return;
     }
 
     println!("Loading Lookups and Fastbike Profile...");
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
     let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
@@ -302,12 +305,15 @@ fn test_route_result_to_gpx() {
 fn test_clapham_hackney_fastbike() {
     let segment_path = repo_path("data/segments4/W5_N50.rd5");
     if !segment_path.exists() {
-        println!("Skipping clapham_hackney test: {:?} does not exist", segment_path);
+        println!(
+            "Skipping clapham_hackney test: {:?} does not exist",
+            segment_path
+        );
         return;
     }
 
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
     let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
@@ -407,8 +413,8 @@ fn test_clapham_hackney_lowtraffic() {
         return;
     }
 
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
     let profile = Profile::load_from_file(repo_path("profiles/fastbike-lowtraffic.brf"), &lookups)
         .expect("Failed to load fastbike-lowtraffic profile");
 
@@ -502,10 +508,11 @@ fn test_clapham_hackney_verylowtraffic() {
         return;
     }
 
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
-    let profile = Profile::load_from_file(repo_path("profiles/fastbike-verylowtraffic.brf"), &lookups)
-        .expect("Failed to load fastbike-verylowtraffic profile");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
+    let profile =
+        Profile::load_from_file(repo_path("profiles/fastbike-verylowtraffic.brf"), &lookups)
+            .expect("Failed to load fastbike-verylowtraffic profile");
 
     let mut tile_mgr = TileManager::new(repo_path("data/segments4"));
     let microcaches = tile_mgr
@@ -603,8 +610,8 @@ assign elevationpenaltybuffer = 4.0
 assign elevationmaxbuffer = 8.0
 assign elevationbufferreduce = 0.0001
 "#;
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
     let profile =
         Profile::parse("test_profile", profile_content, &lookups).expect("Profile parse failed");
 
@@ -626,12 +633,15 @@ assign elevationbufferreduce = 0.0001
 fn test_route_with_nogo_zone() {
     let segment_path = repo_path("data/segments4/W5_N50.rd5");
     if !segment_path.exists() {
-        println!("Skipping test_route_with_nogo_zone: {:?} does not exist", segment_path);
+        println!(
+            "Skipping test_route_with_nogo_zone: {:?} does not exist",
+            segment_path
+        );
         return;
     }
 
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
     let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
@@ -700,8 +710,8 @@ fn test_route_with_nogo_zone() {
 
 #[test]
 fn test_car_kinematic_and_foot_modes() {
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
 
     // 1. Verify foot mode Tobler's hiking speed is not clamped by way maxspeed
     let hiking = Profile::load_from_file(repo_path("profiles/hiking-mountain.brf"), &lookups)
@@ -709,7 +719,11 @@ fn test_car_kinematic_and_foot_modes() {
     let hiking_k = KinematicConfig::from_profile(&hiking);
     assert!(hiking_k.is_foot_mode);
     let (foot_speed, foot_energy) = hiking_k.compute_speed_and_energy(100.0, 0.0, 0.5);
-    assert!(foot_speed > 1.0, "Foot mode speed should follow Tobler's formula, got {}", foot_speed);
+    assert!(
+        foot_speed > 1.0,
+        "Foot mode speed should follow Tobler's formula, got {}",
+        foot_speed
+    );
     assert!(foot_energy > 0.0);
 
     // 2. Verify non-bike/non-foot StdModel (car-fast) uses profile maxSpeed
@@ -756,8 +770,8 @@ fn test_voicehints_messages_times_and_kml() {
         return;
     }
 
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
     let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
@@ -845,8 +859,8 @@ fn test_heading_beeline_and_nogo_polygons() {
         return;
     }
 
-    let lookups =
-        LookupData::load_from_file(repo_path("profiles/lookups.dat")).expect("Failed to load lookups.dat");
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to load lookups.dat");
     let profile = Profile::load_from_file(repo_path("profiles/fastbike.brf"), &lookups)
         .expect("Failed to load fastbike profile");
 
@@ -880,7 +894,10 @@ fn test_heading_beeline_and_nogo_polygons() {
         })
         .expect("Beeline route failed");
     assert_eq!(beeline_route.points.len(), 2);
-    assert_eq!(beeline_route.total_cost, beeline_route.total_distance_m as u32);
+    assert_eq!(
+        beeline_route.total_cost,
+        beeline_route.total_distance_m as u32
+    );
     assert!(beeline_route.total_distance_m > 500.0);
 
     // 2. Departure heading penalty
@@ -943,8 +960,8 @@ fn test_heading_beeline_and_nogo_polygons() {
 
 #[test]
 fn test_lazy_rd5_on_demand_cell_loading_parity() {
-    use std::sync::Arc;
     use brouter_rs::rd5::rd5_slice::{FileRd5SegmentReader, LazyRd5Provider};
+    use std::sync::Arc;
 
     let segments_dir = repo_path("data/segments4");
     if !segments_dir.join("W5_N50.rd5").exists() {
@@ -1030,18 +1047,33 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
     assert_eq!(lazy_route_1.total_cost, ref_route_1.total_cost);
     assert!((lazy_route_1.total_distance_m - ref_route_1.total_distance_m).abs() < 1e-6);
     assert_eq!(lazy_route_1.points.len(), ref_route_1.points.len());
-    assert_eq!(lazy_route_1.voice_hints.len(), ref_route_1.voice_hints.len());
+    assert_eq!(
+        lazy_route_1.voice_hints.len(),
+        ref_route_1.voice_hints.len()
+    );
 
     assert_eq!(lazy_route_2.total_cost, ref_route_2.total_cost);
     assert!((lazy_route_2.total_distance_m - ref_route_2.total_distance_m).abs() < 1e-6);
     assert_eq!(lazy_route_2.points.len(), ref_route_2.points.len());
-    assert_eq!(lazy_route_2.voice_hints.len(), ref_route_2.voice_hints.len());
+    assert_eq!(
+        lazy_route_2.voice_hints.len(),
+        ref_route_2.voice_hints.len()
+    );
 
-    assert!(cells_after_1 > 0 && cells_after_1 < 60, "Expected < 60 cells, got {}", cells_after_1);
-    assert!(cells_after_2 >= cells_after_1 && cells_after_2 < 80, "Expected < 80 cells, got {}", cells_after_2);
+    assert!(
+        cells_after_1 > 0 && cells_after_1 < 60,
+        "Expected < 60 cells, got {}",
+        cells_after_1
+    );
+    assert!(
+        cells_after_2 >= cells_after_1 && cells_after_2 < 80,
+        "Expected < 80 cells, got {}",
+        cells_after_2
+    );
 
-    let safe_profile = Profile::load_from_file(repo_path("profiles/fastbike-lowtraffic.brf"), &lookups)
-        .expect("Failed to load fastbike-lowtraffic profile");
+    let safe_profile =
+        Profile::load_from_file(repo_path("profiles/fastbike-lowtraffic.brf"), &lookups)
+            .expect("Failed to load fastbike-lowtraffic profile");
     let waypoints_11 = [
         (-0.1421, 51.4611),
         (-0.1401, 51.4651),
@@ -1108,13 +1140,15 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
         lazy_route_11_moved.total_cost,
         lazy_route_11_moved.total_distance_m
     );
-    assert_eq!(lazy_route_11_moved.total_cost, ref_route_11_moved.total_cost);
-    assert!((lazy_route_11_moved.total_distance_m - ref_route_11_moved.total_distance_m).abs() < 1e-6);
-    assert_eq!(lazy_route_11_moved.points.len(), ref_route_11_moved.points.len());
+    assert_eq!(
+        lazy_route_11_moved.total_cost,
+        ref_route_11_moved.total_cost
+    );
+    assert!(
+        (lazy_route_11_moved.total_distance_m - ref_route_11_moved.total_distance_m).abs() < 1e-6
+    );
+    assert_eq!(
+        lazy_route_11_moved.points.len(),
+        ref_route_11_moved.points.len()
+    );
 }
-
-
-
-
-
-
