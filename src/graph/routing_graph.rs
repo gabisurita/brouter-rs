@@ -1107,11 +1107,12 @@ impl RoutingGraph {
             if let Some((t_start, t_count)) = t_offset {
                 edge.target_edges_start = t_start;
                 edge.target_edges_count = t_count;
-                let t_end = t_start as usize + t_count as usize;
+                let t_start_idx = t_start as usize;
+                let t_end = t_start_idx + t_count as usize;
                 let mut exact_rev: Option<usize> = None;
                 let mut fallback_rev: Option<usize> = None;
-                for rev_idx in (t_start as usize)..t_end {
-                    let rev_edge = &mut self.flat_edges[rev_idx];
+                for (offset, rev_edge) in self.flat_edges[t_start_idx..t_end].iter_mut().enumerate()
+                {
                     if rev_edge.target_id == s_id {
                         rev_edge.target_edges_start = start;
                         rev_edge.target_edges_count = count;
@@ -1119,16 +1120,15 @@ impl RoutingGraph {
                             && rev_edge.is_reverse != edge.is_reverse
                             && rev_edge.rev_edge_idx == u32::MAX
                         {
-                            exact_rev = Some(rev_idx);
+                            exact_rev = Some(t_start_idx + offset);
                             break;
                         } else if fallback_rev.is_none() {
-                            fallback_rev = Some(rev_idx);
+                            fallback_rev = Some(t_start_idx + offset);
                         }
                     }
                 }
                 // Ensure remaining parallel reverse edges also get target_edges_start/count updated
-                for rev_idx in (t_start as usize)..t_end {
-                    let rev_edge = &mut self.flat_edges[rev_idx];
+                for rev_edge in &mut self.flat_edges[t_start_idx..t_end] {
                     if rev_edge.target_id == s_id {
                         rev_edge.target_edges_start = start;
                         rev_edge.target_edges_count = count;
