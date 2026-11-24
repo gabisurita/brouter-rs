@@ -1152,3 +1152,1116 @@ fn test_lazy_rd5_on_demand_cell_loading_parity() {
         ref_route_11_moved.points.len()
     );
 }
+
+#[test]
+fn test_oneway_same_street_loop_around() {
+    use brouter_rs::graph::spatial::{ilat_to_lat, ilon_to_lon};
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{DecodedLink, DecodedMicroCache, DecodedNode};
+
+    let lookups = LookupData::parse("---context:way\n---context:node\n").unwrap();
+    let profile = Profile::parse(
+        "oneway_loop",
+        "---context:global\n\
+         ---context:way\n\
+         assign costfactor = if reversedirection=yes then 10000 else 1.0\n\
+         ---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+
+    let way_tags = || {
+        Some(TagValueWrapper {
+            data: vec![1],
+            access_type: 2,
+        })
+    };
+
+    // 6-node one-way loop: A -> B -> C -> D -> E -> F -> A
+    let coords = [
+        (180_000_000, 141_000_000), // A
+        (180_004_000, 141_000_000), // B
+        (180_004_000, 141_002_000), // C
+        (180_002_000, 141_002_000), // D
+        (180_000_000, 141_002_000), // E
+        (180_000_000, 141_001_000), // F
+    ];
+
+    let mut nodes = Vec::new();
+    for i in 0..coords.len() {
+        let next = coords[(i + 1) % coords.len()];
+        nodes.push(DecodedNode {
+            ilon: coords[i].0,
+            ilat: coords[i].1,
+            selev: 100,
+            node_tags: None,
+            turn_restrictions: Vec::new(),
+            links: vec![DecodedLink {
+                target_lon: next.0,
+                target_lat: next.1,
+                is_reverse: false,
+                way_tags: way_tags(),
+                geometry: Vec::new(),
+            }],
+        });
+    }
+
+    let mut graph = RoutingGraph::new();
+    graph.add_micro_cache(DecodedMicroCache {
+        lon_idx: 180_000_000i32.div_euclid(12_500),
+        lat_idx: 141_000_000i32.div_euclid(12_500),
+        nodes,
+    });
+    graph.resolve_edge_target_elevations();
+
+    // Start at 75% along A -> B, target at 25% along A -> B
+    let start = (ilon_to_lon(180_003_000), ilat_to_lat(141_000_000));
+    let target = (ilon_to_lon(180_001_000), ilat_to_lat(141_000_000));
+
+    let router = AStarRouter::new();
+    let route = router
+        .query(&graph, &lookups, &profile, &[start, target])
+        .compute()
+        .expect("One-way same-street loop-around must succeed");
+
+    // Expected path: start -> B -> C -> D -> E -> F -> A -> target (8 points)
+    assert_eq!(route.points.len(), 8, "Expected 8-point loop around block");
+    assert!(route.total_distance_m > 500.0);
+}
+
+#[test]
+fn test_target_link_fallthrough_and_same_segment_direction() {
+    use brouter_rs::graph::spatial::{ilat_to_lat, ilon_to_lon};
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{
+        DecodedGeometryPoint, DecodedLink, DecodedMicroCache, DecodedNode,
+    };
+
+    let lookups = LookupData::parse("---context:way\n---context:node\n").unwrap();
+    let profile = Profile::parse(
+        "target_fallthrough",
+        "---context:global\n\
+         ---context:way\n\
+         assign costfactor = 1.0\n\
+         ---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+
+    let way_tags = || {
+        Some(TagValueWrapper {
+            data: vec![1],
+            access_type: 2,
+        })
+    };
+
+    // Build connected graph of >= 6 nodes: S0->S1->S2->S3->A, and two parallel edges A<->B:
+    // E1 (north arc via M_north) and E2 (south arc via M_south).
+    // Hard nogo sits on chord M_north <-> M_south (clear of both arcs, blocking sliced chord).
+    let lat_base: i32 = 141_000_000;
+    let a_lon: i32 = 180_004_000;
+    let b_lon: i32 = 180_008_000;
+    let mid_lon: i32 = 180_006_000;
+    let m_north_lat: i32 = lat_base + 2_000;
+    let m_south_lat: i32 = lat_base - 2_000;
+
+    let cache = DecodedMicroCache {
+        lon_idx: 180_000_000i32.div_euclid(12_500),
+        lat_idx: lat_base.div_euclid(12_500),
+        nodes: vec![
+            DecodedNode {
+                ilon: 180_000_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_001_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_001_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_002_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_002_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_003_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_003_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: a_lon,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: a_lon,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![
+                    // E1: north arc A -> M_north -> B
+                    DecodedLink {
+                        target_lon: b_lon,
+                        target_lat: lat_base,
+                        is_reverse: false,
+                        way_tags: way_tags(),
+                        geometry: vec![DecodedGeometryPoint {
+                            dlon: mid_lon - a_lon,
+                            dlat: m_north_lat - lat_base,
+                            delev: 0,
+                        }],
+                    },
+                    // E2: south arc A -> M_south -> B
+                    DecodedLink {
+                        target_lon: b_lon,
+                        target_lat: lat_base,
+                        is_reverse: false,
+                        way_tags: way_tags(),
+                        geometry: vec![DecodedGeometryPoint {
+                            dlon: mid_lon - a_lon,
+                            dlat: m_south_lat - lat_base,
+                            delev: 0,
+                        }],
+                    },
+                ],
+            },
+            DecodedNode {
+                ilon: b_lon,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: Vec::new(),
+            },
+        ],
+    };
+
+    let mut graph = RoutingGraph::new();
+    graph.add_micro_cache(cache);
+    graph.resolve_edge_target_elevations();
+
+    let start = (ilon_to_lon(180_000_500), ilat_to_lat(lat_base));
+    // Target is right on M_south on E2
+    let target = (ilon_to_lon(mid_lon), ilat_to_lat(m_south_lat));
+    // Nogo blocks A -> M_south (so E2 from A is blocked) AND blocks chord M_north -> M_south (so E1 sliced is blocked),
+    // while E1 full path A -> M_north -> B and B -> M_south remain clear!
+    let nogo_block_a_south = NogoArea::new(
+        ilon_to_lon((a_lon + mid_lon) / 2),
+        ilat_to_lat((lat_base + m_south_lat) / 2),
+        50.0,
+    );
+    let nogo_chord = NogoArea::new(ilon_to_lon(mid_lon), ilat_to_lat(lat_base + 500), 60.0);
+
+    let router = AStarRouter::new();
+    let route = router
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: RoutingOptions {
+                nogos: &[nogo_block_a_south, nogo_chord],
+                ..Default::default()
+            },
+        })
+        .expect("Route must fall through blocked is_target_link onto E1 -> B -> M_south");
+    assert!(route.total_cost > 0);
+
+    // Also test same_segment start_direction / force_start_direction penalty
+    let same_seg_start = (ilon_to_lon(180_001_200), ilat_to_lat(lat_base));
+    let same_seg_target = (ilon_to_lon(180_001_800), ilat_to_lat(lat_base));
+    let east_dir = router
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[same_seg_start, same_seg_target],
+            options: RoutingOptions {
+                start_direction: Some(90.0),
+                force_start_direction: true,
+                ..Default::default()
+            },
+        })
+        .unwrap();
+    let west_dir = router
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[same_seg_start, same_seg_target],
+            options: RoutingOptions {
+                start_direction: Some(270.0),
+                force_start_direction: true,
+                ..Default::default()
+            },
+        })
+        .unwrap();
+    assert!(
+        west_dir.total_cost >= east_dir.total_cost + 10_000,
+        "same_segment must apply force_start_direction penalty (east={}, west={})",
+        east_dir.total_cost,
+        west_dir.total_cost
+    );
+}
+
+#[test]
+fn test_soft_nogo_large_weight_saturates_without_overflow() {
+    use brouter_rs::graph::spatial::{ilat_to_lat, ilon_to_lon};
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{
+        DecodedGeometryPoint, DecodedLink, DecodedMicroCache, DecodedNode,
+    };
+
+    let lookups = LookupData::parse("---context:way\n---context:node\n").unwrap();
+    let profile = Profile::parse(
+        "nogo_overflow",
+        "---context:global\n\
+         ---context:way\n\
+         assign costfactor = 1.0\n\
+         ---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+
+    let way_tags = || {
+        Some(TagValueWrapper {
+            data: vec![1],
+            access_type: 2,
+        })
+    };
+
+    let lat_base: i32 = 141_000_000;
+    let cache = DecodedMicroCache {
+        lon_idx: 180_000_000i32.div_euclid(12_500),
+        lat_idx: lat_base.div_euclid(12_500),
+        nodes: vec![
+            DecodedNode {
+                ilon: 180_000_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_002_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_002_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_004_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_004_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![
+                    // Direct penalized edge with soft nogo
+                    DecodedLink {
+                        target_lon: 180_008_000,
+                        target_lat: lat_base,
+                        is_reverse: false,
+                        way_tags: way_tags(),
+                        geometry: Vec::new(),
+                    },
+                    // Clean parallel bypass going north
+                    DecodedLink {
+                        target_lon: 180_008_000,
+                        target_lat: lat_base,
+                        is_reverse: false,
+                        way_tags: way_tags(),
+                        geometry: vec![DecodedGeometryPoint {
+                            dlon: 2_000,
+                            dlat: 2_000,
+                            delev: 0,
+                        }],
+                    },
+                ],
+            },
+            DecodedNode {
+                ilon: 180_008_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_010_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_010_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_012_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: way_tags(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_012_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: Vec::new(),
+            },
+        ],
+    };
+
+    let mut graph = RoutingGraph::new();
+    graph.add_micro_cache(cache);
+    graph.resolve_edge_target_elevations();
+
+    let start = (ilon_to_lon(180_000_500), ilat_to_lat(lat_base));
+    let target = (ilon_to_lon(180_011_500), ilat_to_lat(lat_base));
+    let soft_nogo =
+        NogoArea::with_weight(ilon_to_lon(180_006_000), ilat_to_lat(lat_base), 50.0, 1e9);
+
+    let router = AStarRouter::new();
+    let route = router
+        .route(RouteRequest {
+            graph: &graph,
+            lookups: &lookups,
+            profile: &profile,
+            waypoints: &[start, target],
+            options: RoutingOptions {
+                nogos: &[soft_nogo],
+                ..Default::default()
+            },
+        })
+        .expect("Route should bypass saturated soft nogo without overflow");
+
+    assert!(
+        route
+            .points
+            .iter()
+            .any(|p| p.lat > ilat_to_lat(lat_base) + 0.001),
+        "Route must choose clean north bypass rather than overflowing soft nogo cost"
+    );
+    assert!(route.total_cost < 10_000);
+}
+
+#[test]
+fn test_retrack_message_costs_and_parallel_edge_lookup() {
+    use brouter_rs::graph::spatial::{ilat_to_lat, ilon_to_lon};
+    use brouter_rs::rd5::codec::bit_coder::StatCoderContext;
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{
+        DecodedGeometryPoint, DecodedLink, DecodedMicroCache, DecodedNode,
+    };
+
+    let lookups = LookupData::parse(
+        "---context:way\n\
+         highway residential\n\
+         highway cycleway\n\
+         highway track\n\
+         ---context:node\n\
+         barrier gate\n",
+    )
+    .unwrap();
+
+    let profile = Profile::parse(
+        "retrack_costs",
+        "---context:global\n\
+         assign elevationpenaltybuffer = 5\n\
+         assign elevationmaxbuffer = 10\n\
+         assign elevationbufferreduce = 0\n\
+         ---context:way\n\
+         assign turncost = 100\n\
+         assign uphillcost = 100\n\
+         assign uphillcutoff = 0\n\
+         assign initialclassifier = switch highway=cycleway 2 1\n\
+         assign initialcost = switch highway=cycleway 250 0\n\
+         assign costfactor = switch highway=track 100 1.0\n\
+         ---context:node\n\
+         assign initialcost = switch barrier=gate 120 0\n",
+        &lookups,
+    )
+    .unwrap();
+
+    let encode_single_tag = |dd_val: i32, access_type: i32| -> TagValueWrapper {
+        let mut buf = vec![0u8; 8];
+        let len = {
+            let mut ctx = StatCoderContext::new(&mut buf);
+            ctx.bit_coder.encode_var_bits(1); // delta = 1 (first tag after hardwired idx 0)
+            ctx.bit_coder.encode_var_bits(dd_val);
+            ctx.bit_coder.encode_var_bits(0); // terminator
+            ctx.bit_coder.close_and_get_encoded_length()
+        };
+        buf.truncate(len);
+        TagValueWrapper {
+            data: buf,
+            access_type,
+        }
+    };
+
+    let tag_residential = || Some(encode_single_tag(0, 2)); // dd=0 -> idx 2 (residential)
+    let tag_cycleway = || Some(encode_single_tag(1, 2)); // dd=1 -> idx 3 (cycleway)
+    let tag_track = || Some(encode_single_tag(2, 2)); // dd=2 -> idx 4 (track)
+    let node_gate = || Some(encode_single_tag(0, 0)); // dd=0 -> idx 2 (gate)
+
+    // Build 6-node chain: S0 -> A -> B =(parallel track|cycleway)=> C(gate) -> D(climb) -> E
+    let lat_base: i32 = 141_000_000;
+    let cache = DecodedMicroCache {
+        lon_idx: 180_000_000i32.div_euclid(12_500),
+        lat_idx: lat_base.div_euclid(12_500),
+        nodes: vec![
+            DecodedNode {
+                ilon: 180_000_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_002_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: tag_residential(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_002_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_004_000,
+                    target_lat: lat_base,
+                    is_reverse: false,
+                    way_tags: tag_residential(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_004_000,
+                ilat: lat_base,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![
+                    // Expensive direct edge (edges[0])
+                    DecodedLink {
+                        target_lon: 180_004_000,
+                        target_lat: lat_base + 4_000,
+                        is_reverse: false,
+                        way_tags: tag_track(),
+                        geometry: Vec::new(),
+                    },
+                    // Cheap parallel curved cycleway (edges[1], detours east at midpoint)
+                    DecodedLink {
+                        target_lon: 180_004_000,
+                        target_lat: lat_base + 4_000,
+                        is_reverse: false,
+                        way_tags: tag_cycleway(),
+                        geometry: vec![DecodedGeometryPoint {
+                            dlon: 1_000,
+                            dlat: 2_000,
+                            delev: 0,
+                        }],
+                    },
+                ],
+            },
+            DecodedNode {
+                ilon: 180_004_000,
+                ilat: lat_base + 4_000,
+                selev: 100,
+                node_tags: node_gate(),
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_008_000,
+                    target_lat: lat_base + 4_000,
+                    is_reverse: false,
+                    way_tags: tag_residential(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_008_000,
+                ilat: lat_base + 4_000,
+                selev: 500, // +100m climb
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: 180_010_000,
+                    target_lat: lat_base + 4_000,
+                    is_reverse: false,
+                    way_tags: tag_residential(),
+                    geometry: Vec::new(),
+                }],
+            },
+            DecodedNode {
+                ilon: 180_010_000,
+                ilat: lat_base + 4_000,
+                selev: 500,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: Vec::new(),
+            },
+        ],
+    };
+
+    let mut graph = RoutingGraph::new();
+    graph.add_micro_cache(cache);
+    graph.resolve_edge_target_elevations();
+
+    let start = (ilon_to_lon(180_000_500), ilat_to_lat(lat_base));
+    let target = (ilon_to_lon(180_009_500), ilat_to_lat(lat_base + 4_000));
+    let router = AStarRouter::new();
+    let route = router
+        .query(&graph, &lookups, &profile, &[start, target])
+        .compute()
+        .expect("Route must succeed");
+
+    let msgs: Vec<_> = route.messages.iter().flatten().collect();
+    // Parallel edge 1 (cycleway with midpoint dlat=2_000) must be selected over edge 0 (track)
+    assert!(
+        msgs.iter()
+            .any(|m| m.way_key_values.contains("highway=cycleway")),
+        "expected cycleway message, got: {msgs:?}"
+    );
+    assert!(
+        route
+            .points
+            .iter()
+            .any(|p| p.lon > ilon_to_lon(180_004_500) && p.lat < ilat_to_lat(lat_base + 4_000)),
+        "expected cycleway east-detour intermediate geometry point"
+    );
+
+    let max_turn: i32 = msgs.iter().map(|m| m.linkturncost).max().unwrap_or(0);
+    let total_init: i32 = msgs.iter().map(|m| m.linkinitcost).sum();
+    let total_node: i32 = msgs.iter().map(|m| m.linknodecost).sum();
+    let total_elev: i32 = msgs.iter().map(|m| m.linkelevationcost).sum();
+
+    // Un-halved 90-degree turn with turncost=100 gives ~100 (previously ~50)
+    assert!(
+        max_turn >= 80,
+        "expected un-halved turn cost >= 80, got {max_turn}"
+    );
+    assert_eq!(
+        total_init, 250,
+        "expected initialcost 250 on classifier switch"
+    );
+    assert_eq!(total_node, 120, "expected barrier=gate nodecost 120");
+    assert!(
+        total_elev > 0,
+        "expected non-zero linkelevationcost on +100m climb"
+    );
+}
+
+#[test]
+fn test_recalc_track_beeline_guard_and_incline_sign() {
+    use brouter_rs::routing::cost::KinematicConfig;
+    use brouter_rs::routing::track::{RoutePoint, RouteResult};
+    use brouter_rs::routing::voice::WayMessage;
+
+    let graph = RoutingGraph::new();
+    let cfg = KinematicConfig {
+        total_mass: 90.0,
+        biker_power: 100.0,
+        c_r: 0.01,
+        s_c_x: 0.225,
+        max_speed: 12.5,
+        is_bike_mode: true,
+        is_foot_mode: false,
+    };
+
+    // (a) Regular non-beeline step taking exactly 1.0s must NOT be altered
+    let mut non_beeline = RouteResult {
+        total_distance_m: 10.0,
+        total_time_s: 1.0,
+        total_energy_j: 100.0,
+        total_cost: 10,
+        filtered_ascend_m: 0.0,
+        plain_ascend_m: 0.0,
+        points: vec![
+            RoutePoint {
+                lon: 0.0,
+                lat: 51.5,
+                elevation_m: 10.0,
+                distance_from_start_m: 0.0,
+                time_from_start_s: 0.0,
+                energy_j: 0.0,
+                cost: 0,
+            },
+            RoutePoint {
+                lon: 0.000144,
+                lat: 51.5,
+                elevation_m: 10.0,
+                distance_from_start_m: 10.0,
+                time_from_start_s: 1.0,
+                energy_j: 100.0,
+                cost: 10,
+            },
+        ],
+        messages: vec![
+            None,
+            Some(WayMessage {
+                way_key_values: "highway=residential".to_string(),
+                time: 1.0,
+                energy: 100.0,
+                ..Default::default()
+            }),
+        ],
+        voice_hints: Vec::new(),
+        turn_instruction_mode: 0,
+    };
+    non_beeline.recalc_track(&graph, &cfg);
+    assert!((non_beeline.total_time_s - 1.0).abs() < 1e-5);
+    assert!((non_beeline.total_energy_j - 100.0).abs() < 1e-4);
+
+    // (b) Uphill vs downhill beeline step: uphill adds more energy, downhill never adds negative energy
+    let make_track = |ele0: f64, ele1: f64| RouteResult {
+        total_distance_m: 200.0,
+        total_time_s: 21.0,
+        total_energy_j: 500.0,
+        total_cost: 200,
+        filtered_ascend_m: 0.0,
+        plain_ascend_m: 0.0,
+        points: vec![
+            RoutePoint {
+                lon: 0.0,
+                lat: 51.5,
+                elevation_m: 100.0,
+                distance_from_start_m: 0.0,
+                time_from_start_s: 0.0,
+                energy_j: 0.0,
+                cost: 0,
+            },
+            RoutePoint {
+                lon: 0.00144,
+                lat: 51.5,
+                elevation_m: ele0,
+                distance_from_start_m: 100.0,
+                time_from_start_s: 20.0, // speed = 18 km/h
+                energy_j: 500.0,
+                cost: 100,
+            },
+            RoutePoint {
+                lon: 0.00288,
+                lat: 51.5,
+                elevation_m: ele1,
+                distance_from_start_m: 200.0,
+                time_from_start_s: 21.0, // tmptime == 1.0s
+                energy_j: 500.0,
+                cost: 200,
+            },
+        ],
+        messages: vec![
+            None,
+            Some(WayMessage {
+                way_key_values: "highway=residential".to_string(),
+                time: 20.0,
+                energy: 500.0,
+                ..Default::default()
+            }),
+            Some(WayMessage {
+                way_key_values: "beeline=yes".to_string(),
+                time: 21.0,
+                energy: 500.0,
+                ..Default::default()
+            }),
+        ],
+        voice_hints: Vec::new(),
+        turn_instruction_mode: 0,
+    };
+
+    let mut uphill = make_track(100.0, 120.0);
+    let mut downhill = make_track(120.0, 100.0);
+    uphill.recalc_track(&graph, &cfg);
+    downhill.recalc_track(&graph, &cfg);
+
+    let uphill_added = uphill.total_energy_j - 500.0;
+    let downhill_added = downhill.total_energy_j - 500.0;
+    assert!(
+        uphill_added > downhill_added,
+        "uphill added energy ({uphill_added}) must exceed downhill ({downhill_added})"
+    );
+    assert!(
+        downhill_added >= 0.0,
+        "downhill beeline energy must never be negative ({downhill_added})"
+    );
+
+    // (c) Track with only fast (>=9999 km/h) 1.0s beeline step must not divide by 9999.0
+    let mut only_beeline = RouteResult {
+        total_distance_m: 4000.0,
+        total_time_s: 1.0,
+        total_energy_j: 0.0,
+        total_cost: 4000,
+        filtered_ascend_m: 0.0,
+        plain_ascend_m: 0.0,
+        points: vec![
+            RoutePoint {
+                lon: 0.0,
+                lat: 51.5,
+                elevation_m: 0.0,
+                distance_from_start_m: 0.0,
+                time_from_start_s: 0.0,
+                energy_j: 0.0,
+                cost: 0,
+            },
+            RoutePoint {
+                lon: 0.0576,
+                lat: 51.5,
+                elevation_m: 0.0,
+                distance_from_start_m: 4000.0,
+                time_from_start_s: 1.0,
+                energy_j: 0.0,
+                cost: 4000,
+            },
+        ],
+        messages: vec![
+            None,
+            Some(WayMessage {
+                way_key_values: "beeline=yes".to_string(),
+                time: 1.0,
+                energy: 0.0,
+                ..Default::default()
+            }),
+        ],
+        voice_hints: Vec::new(),
+        turn_instruction_mode: 0,
+    };
+    only_beeline.recalc_track(&graph, &cfg);
+    assert!((only_beeline.total_time_s - 1.0).abs() < 1e-5);
+}
+
+#[test]
+fn test_geojson_escaping_profile_and_control_chars() {
+    use brouter_rs::routing::track::{RoutePoint, RouteResult};
+    use brouter_rs::routing::voice::WayMessage;
+
+    let tricky_profile = "fast\"bike\\\n\t\x01";
+    let tricky_tags = "name=Main \"St\"\\\r\n\t\x08\x0c\x01".to_string();
+
+    let route = RouteResult {
+        total_distance_m: 100.0,
+        total_time_s: 10.0,
+        total_energy_j: 50.0,
+        total_cost: 100,
+        filtered_ascend_m: 0.0,
+        plain_ascend_m: 0.0,
+        points: vec![
+            RoutePoint {
+                lon: 0.0,
+                lat: 51.5,
+                elevation_m: 0.0,
+                distance_from_start_m: 0.0,
+                time_from_start_s: 0.0,
+                energy_j: 0.0,
+                cost: 0,
+            },
+            RoutePoint {
+                lon: 0.001,
+                lat: 51.5,
+                elevation_m: 0.0,
+                distance_from_start_m: 100.0,
+                time_from_start_s: 10.0,
+                energy_j: 50.0,
+                cost: 100,
+            },
+        ],
+        messages: vec![
+            None,
+            Some(WayMessage {
+                linkdist: 100,
+                way_key_values: tricky_tags.clone(),
+                ..Default::default()
+            }),
+        ],
+        voice_hints: Vec::new(),
+        turn_instruction_mode: 0,
+    };
+
+    let geojson_str = route.to_geojson(tricky_profile);
+    let parsed: serde_json::Value =
+        serde_json::from_str(&geojson_str).expect("GeoJSON must be valid JSON");
+    let props = &parsed["features"][0]["properties"];
+    assert_eq!(props["name"].as_str(), Some("fast\"bike\\\n\t\x01_route"));
+    assert_eq!(props["messages"][1][9].as_str(), Some(tricky_tags.as_str()));
+}
+
+#[test]
+fn test_multileg_unified_elevation_voicehints_and_via_correction() {
+    use brouter_rs::graph::spatial::{ilat_to_lat, ilon_to_lon};
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{DecodedLink, DecodedMicroCache, DecodedNode};
+    use brouter_rs::routing::voice::VoiceHint;
+
+    let lookups = LookupData::parse("---context:way\n---context:node\n").unwrap();
+    let profile_no_corr = Profile::parse(
+        "multileg_no_corr",
+        "---context:global\n\
+         assign turnInstructionMode = 4\n\
+         assign turnInstructionCatchingRange = 1\n\
+         ---context:way\n\
+         assign costfactor = 1.0\n\
+         assign priorityclassifier = 10\n\
+         ---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+    let profile_with_corr = Profile::parse(
+        "multileg_with_corr",
+        "---context:global\n\
+         assign turnInstructionMode = 4\n\
+         assign turnInstructionCatchingRange = 1\n\
+         assign correctMisplacedViaPoints = 1\n\
+         ---context:way\n\
+         assign costfactor = 1.0\n\
+         assign priorityclassifier = 10\n\
+         ---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+    let profile_with_dist_corr = Profile::parse(
+        "multileg_with_dist_corr",
+        "---context:global\n\
+         assign turnInstructionMode = 4\n\
+         assign turnInstructionCatchingRange = 1\n\
+         assign correctMisplacedViaPoints = 1\n\
+         assign correctMisplacedViaPointsDistance = 400\n\
+         ---context:way\n\
+         assign costfactor = 1.0\n\
+         assign priorityclassifier = 10\n\
+         ---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+
+    let way_tags = || {
+        Some(TagValueWrapper {
+            data: vec![1],
+            access_type: 2,
+        })
+    };
+
+    let lat_base: i32 = 141_000_000;
+    // Bidirectional L-turn at J(180_004_000, lat_base, selev=i16::MIN) plus Spur East to 180_005_000:
+    // A(0,0,100m) - B(2000,0,100m) - J(4000,0,MIN) - Spur(5000,0,100m)
+    //                                       |
+    //                                C(4000,+2000,150m) - D(4000,+4000,150m) - E(4000,+6000,150m)
+    let make_link = |lon: i32, lat: i32| DecodedLink {
+        target_lon: lon,
+        target_lat: lat,
+        is_reverse: false,
+        way_tags: way_tags(),
+        geometry: Vec::new(),
+    };
+
+    let cache = DecodedMicroCache {
+        lon_idx: 180_000_000i32.div_euclid(12_500),
+        lat_idx: lat_base.div_euclid(12_500),
+        nodes: vec![
+            DecodedNode {
+                ilon: 180_000_000,
+                ilat: lat_base,
+                selev: 400,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![make_link(180_002_000, lat_base)],
+            },
+            DecodedNode {
+                ilon: 180_002_000,
+                ilat: lat_base,
+                selev: 400,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![
+                    make_link(180_000_000, lat_base),
+                    make_link(180_004_000, lat_base),
+                ],
+            },
+            DecodedNode {
+                ilon: 180_004_000,
+                ilat: lat_base,
+                selev: i16::MIN, // missing bridge/tunnel elevation right at via junction
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![
+                    make_link(180_002_000, lat_base),
+                    make_link(180_005_000, lat_base),
+                    make_link(180_004_000, lat_base + 2_000),
+                ],
+            },
+            DecodedNode {
+                ilon: 180_005_000,
+                ilat: lat_base,
+                selev: 400,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![make_link(180_004_000, lat_base)],
+            },
+            DecodedNode {
+                ilon: 180_004_000,
+                ilat: lat_base + 2_000,
+                selev: 600,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![
+                    make_link(180_004_000, lat_base),
+                    make_link(180_004_000, lat_base + 4_000),
+                ],
+            },
+            DecodedNode {
+                ilon: 180_004_000,
+                ilat: lat_base + 4_000,
+                selev: 600,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![
+                    make_link(180_004_000, lat_base + 2_000),
+                    make_link(180_004_000, lat_base + 6_000),
+                ],
+            },
+            DecodedNode {
+                ilon: 180_004_000,
+                ilat: lat_base + 6_000,
+                selev: 600,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![make_link(180_004_000, lat_base + 4_000)],
+            },
+        ],
+    };
+
+    let mut graph = RoutingGraph::new();
+    graph.add_micro_cache(cache);
+    graph.resolve_edge_target_elevations();
+
+    let start = (ilon_to_lon(180_000_500), ilat_to_lat(lat_base));
+    let target = (ilon_to_lon(180_004_000), ilat_to_lat(lat_base + 5_500));
+    let j_lon = ilon_to_lon(180_004_000);
+    let j_lat = ilat_to_lat(lat_base);
+    let router = AStarRouter::new();
+
+    // 1. Via right at J: verify missing elevation at J interpolated between 100m and 150m + unified turn voice hint
+    let route_via_j = router
+        .query(
+            &graph,
+            &lookups,
+            &profile_no_corr,
+            &[start, (j_lon, j_lat), target],
+        )
+        .compute()
+        .expect("Multi-leg route through J must succeed");
+    let pt_j = route_via_j
+        .points
+        .iter()
+        .find(|p| (p.lon - j_lon).abs() < 1e-5 && (p.lat - j_lat).abs() < 1e-5)
+        .expect("Junction J point must exist");
+    assert!(
+        pt_j.elevation_m > 110.0 && pt_j.elevation_m < 140.0,
+        "Expected interpolated elevation at via J strictly between 100m and 150m, got {}",
+        pt_j.elevation_m
+    );
+    assert!(
+        route_via_j
+            .voice_hints
+            .iter()
+            .any(|vh| vh.cmd == VoiceHint::TL || (vh.angle < -60.0)),
+        "Expected left-turn voice hint at via junction J, got: {:?}",
+        route_via_j.voice_hints
+    );
+    assert!(
+        route_via_j
+            .voice_hints
+            .iter()
+            .all(|vh| vh.cmd != VoiceHint::END),
+        "Voice hints must not contain END command: {:?}",
+        route_via_j.voice_hints
+    );
+
+    // 2. Misplaced via point along Spur: trims out-and-back stub only when correctMisplacedViaPoints=1
+    let misplaced_via = (ilon_to_lon(180_004_500), ilat_to_lat(lat_base));
+    let untrimmed = router
+        .query(
+            &graph,
+            &lookups,
+            &profile_no_corr,
+            &[start, misplaced_via, target],
+        )
+        .compute()
+        .expect("Untrimmed misplaced-via route must succeed");
+    assert!(
+        untrimmed.points.iter().any(|p| p.lon > j_lon + 0.0002),
+        "Without correctMisplacedViaPoints, route must detour onto Spur"
+    );
+
+    for prof in [&profile_with_corr, &profile_with_dist_corr] {
+        let trimmed = router
+            .query(&graph, &lookups, prof, &[start, misplaced_via, target])
+            .compute()
+            .expect("Trimmed misplaced-via route must succeed");
+        assert!(
+            trimmed.points.iter().all(|p| p.lon <= j_lon + 1e-5),
+            "With correctMisplacedViaPoints, Spur stub must be trimmed"
+        );
+        assert!(trimmed.total_distance_m < untrimmed.total_distance_m);
+        assert!(
+            trimmed
+                .voice_hints
+                .iter()
+                .any(|vh| vh.cmd == VoiceHint::TL || (vh.angle < -60.0)),
+            "Expected left-turn voice hint at trimmed junction J, got: {:?}",
+            trimmed.voice_hints
+        );
+    }
+}

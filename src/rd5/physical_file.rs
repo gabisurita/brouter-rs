@@ -18,6 +18,7 @@ pub struct PhysicalFile {
     pub file: File,
     pub file_index: [u64; 25],
     pub file_header_crcs: [i32; 25],
+    pub has_trailer: bool,
     pub creation_time: i64,
     pub divisor: i32,
     pub elevation_type: u8,
@@ -60,6 +61,7 @@ impl PhysicalFile {
                 file,
                 file_index,
                 file_header_crcs: [0; 25],
+                has_trailer: false,
                 creation_time: 0,
                 divisor: 80,
                 elevation_type: 3,
@@ -67,17 +69,17 @@ impl PhysicalFile {
             });
         }
 
-        if file_len > pos + extra_len as u64 {
+        if file_len > pos.saturating_add(extra_len as u64) {
             extra_len += 1;
         }
 
-        if file_len < pos + extra_len as u64 {
+        if file_len < pos.saturating_add(extra_len as u64) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
                     "File size {} too short, expected at least {}",
                     file_len,
-                    pos + extra_len as u64
+                    pos.saturating_add(extra_len as u64)
                 ),
             ));
         }
@@ -121,6 +123,7 @@ impl PhysicalFile {
             file,
             file_index,
             file_header_crcs,
+            has_trailer: true,
             creation_time,
             divisor,
             elevation_type,

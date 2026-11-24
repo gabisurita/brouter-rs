@@ -15,7 +15,12 @@ pub trait Rd5SegmentReader: Send + Sync {
     fn read_range(&self, segment_name: &str, start: u64, end: u64) -> io::Result<Vec<u8>>;
 }
 
-type OpenSegmentEntry = Option<(std::sync::Arc<std::fs::File>, u64)>;
+#[cfg(any(unix, windows))]
+type SharedFile = std::sync::Arc<std::fs::File>;
+#[cfg(not(any(unix, windows)))]
+type SharedFile = std::sync::Arc<std::sync::Mutex<std::fs::File>>;
+
+type OpenSegmentEntry = (SharedFile, u64);
 
 /// Filesystem-backed `Rd5SegmentReader` for native random-access cell loading.
 pub struct FileRd5SegmentReader {
@@ -31,19 +36,25 @@ impl FileRd5SegmentReader {
         }
     }
 
-    fn get_or_open_file(&self, segment_name: &str) -> Option<(std::sync::Arc<std::fs::File>, u64)> {
+    fn get_or_open_file(&self, segment_name: &str) -> Option<(SharedFile, u64)> {
         if let Ok(files) = self.open_files.read() {
             if let Some(entry) = files.get(segment_name) {
-                return entry.clone();
+                return Some(entry.clone());
             }
         }
         let path = self.segment_dir.join(format!("{segment_name}.rd5"));
         let opened = std::fs::File::open(path).ok().and_then(|f| {
             let len = f.metadata().ok()?.len();
-            Some((std::sync::Arc::new(f), len))
+            #[cfg(any(unix, windows))]
+            let shared = std::sync::Arc::new(f);
+            #[cfg(not(any(unix, windows)))]
+            let shared = std::sync::Arc::new(std::sync::Mutex::new(f));
+            Some((shared, len))
         });
-        if let Ok(mut files) = self.open_files.write() {
-            files.insert(segment_name.to_string(), opened.clone());
+        if let Some(ref entry) = opened {
+            if let Ok(mut files) = self.open_files.write() {
+                files.insert(segment_name.to_string(), entry.clone());
+            }
         }
         opened
     }
@@ -71,10 +82,27 @@ impl Rd5SegmentReader for FileRd5SegmentReader {
             use std::os::unix::fs::FileExt;
             file.read_exact_at(&mut buf, start)?;
         }
-        #[cfg(not(unix))]
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::FileExt;
+            let mut offset = 0usize;
+            while offset < buf.len() {
+                let n = file.seek_read(&mut buf[offset..], start + offset as u64)?;
+                if n == 0 {
+                    return Err(Error::new(
+                        ErrorKind::UnexpectedEof,
+                        "Unexpected EOF reading segment file",
+                    ));
+                }
+                offset += n;
+            }
+        }
+        #[cfg(not(any(unix, windows)))]
         {
             use std::io::{Read, Seek, SeekFrom};
-            let mut f = file.as_ref();
+            let mut f = file
+                .lock()
+                .map_err(|_| Error::other("Segment file mutex poisoned"))?;
             f.seek(SeekFrom::Start(start))?;
             f.read_exact(&mut buf)?;
         }
@@ -86,6 +114,7 @@ impl Rd5SegmentReader for FileRd5SegmentReader {
 struct Rd5SegmentMeta {
     file_index: [u64; 25],
     file_header_crcs: [i32; 25],
+    has_trailer: bool,
     divisor: i32,
     elevation_type: u8,
     total_len: u64,
@@ -246,16 +275,17 @@ impl LazyRd5Provider {
             Rd5SegmentMeta {
                 file_index,
                 file_header_crcs: [0; 25],
+                has_trailer: false,
                 divisor: 80,
                 elevation_type: 3,
                 total_len,
             }
         } else {
             let mut extra_len = (8 + 26 * 4) as u64;
-            if total_len > pos + extra_len {
+            if total_len > pos.saturating_add(extra_len) {
                 extra_len += 1;
             }
-            if total_len < pos + extra_len {
+            if total_len < pos.saturating_add(extra_len) {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
                     "RD5 segment too short for trailer",
@@ -287,6 +317,7 @@ impl LazyRd5Provider {
             Rd5SegmentMeta {
                 file_index,
                 file_header_crcs,
+                has_trailer: true,
                 divisor,
                 elevation_type,
                 total_len,
@@ -343,7 +374,7 @@ impl LazyRd5Provider {
         let index_buf =
             self.read_segment_range(&segment_name, start_offset, start_offset + indexsize)?;
         let header_crc = crc::crc(&index_buf);
-        if meta.file_header_crcs[tile_index] != header_crc {
+        if meta.has_trailer && meta.file_header_crcs[tile_index] != header_crc {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 format!("Sub-index checksum mismatch for tile {tile_index}"),

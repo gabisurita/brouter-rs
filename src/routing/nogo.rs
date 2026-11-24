@@ -129,15 +129,35 @@ impl InternalNogo {
             .iter()
             .map(|&(lon, lat)| Point2D::new(lon_to_ilon(lon), lat_to_ilat(lat)))
             .collect();
+        let (min_lon, max_lon, min_lat, max_lat) = if !vertices.is_empty() {
+            let mut min_x = i32::MAX;
+            let mut max_x = i32::MIN;
+            let mut min_y = i32::MAX;
+            let mut max_y = i32::MIN;
+            for v in &vertices {
+                min_x = min_x.min(v.lon);
+                max_x = max_x.max(v.lon);
+                min_y = min_y.min(v.lat);
+                max_y = max_y.max(v.lat);
+            }
+            (min_x, max_x, min_y, max_y)
+        } else {
+            (
+                ilon - dlon_micros,
+                ilon + dlon_micros,
+                ilat - dlat_micros,
+                ilat + dlat_micros,
+            )
+        };
         Self {
             ilon,
             ilat,
             radius_m: area.radius_m,
             weight: area.weight,
-            min_lon: ilon - dlon_micros,
-            max_lon: ilon + dlon_micros,
-            min_lat: ilat - dlat_micros,
-            max_lat: ilat + dlat_micros,
+            min_lon,
+            max_lon,
+            min_lat,
+            max_lat,
             vertices,
             is_closed: area.is_closed,
         }
@@ -169,7 +189,7 @@ fn parse_optional_weight(w_str: &str) -> Option<f64> {
     {
         None
     } else {
-        w_str.parse::<f64>().ok()
+        w_str.parse::<f64>().ok().filter(|v| v.is_finite())
     }
 }
 
@@ -209,6 +229,12 @@ pub fn parse_lonlats(
             .trim()
             .parse()
             .map_err(|_| "Invalid latitude".to_string())?;
+        if !lon.is_finite() {
+            return Err("Invalid longitude".to_string());
+        }
+        if !lat.is_finite() {
+            return Err("Invalid latitude".to_string());
+        }
         if parts.len() > 2 && parts[2].trim().eq_ignore_ascii_case("d") {
             direct_flags[idx] = true;
         }
@@ -268,7 +294,7 @@ pub fn parse_nogos(s: &str) -> Vec<NogoArea> {
         let Ok(radius_m) = parts[2].trim().parse::<f64>() else {
             continue;
         };
-        if radius_m <= 0.0 {
+        if !lon.is_finite() || !lat.is_finite() || !radius_m.is_finite() || radius_m <= 0.0 {
             continue;
         }
         let weight = if parts.len() > 3 {
@@ -318,6 +344,10 @@ pub fn parse_nogo_polygons(s: &str, is_closed: bool) -> Vec<NogoArea> {
                 valid = false;
                 break;
             };
+            if !lon.is_finite() || !lat.is_finite() {
+                valid = false;
+                break;
+            }
             vertices.push((lon, lat));
         }
         if !valid {
@@ -425,13 +455,107 @@ fn ccw(a: Point2D, b: Point2D, c: Point2D) -> f64 {
 }
 
 #[inline]
+fn on_segment(a: Point2D, b: Point2D, p: Point2D) -> bool {
+    p.lon >= a.lon.min(b.lon)
+        && p.lon <= a.lon.max(b.lon)
+        && p.lat >= a.lat.min(b.lat)
+        && p.lat <= a.lat.max(b.lat)
+}
+
+#[inline]
 fn segments_intersect(a: Point2D, b: Point2D, c: Point2D, d: Point2D) -> bool {
     let d1 = ccw(a, b, c);
     let d2 = ccw(a, b, d);
     let d3 = ccw(c, d, a);
     let d4 = ccw(c, d, b);
-    ((d1 <= 0.0 && d2 >= 0.0) || (d1 >= 0.0 && d2 <= 0.0))
-        && ((d3 <= 0.0 && d4 >= 0.0) || (d3 >= 0.0 && d4 <= 0.0))
+    if ((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0))
+        && ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0))
+    {
+        return true;
+    }
+    (d1 == 0.0 && on_segment(a, b, c))
+        || (d2 == 0.0 && on_segment(a, b, d))
+        || (d3 == 0.0 && on_segment(c, d, a))
+        || (d4 == 0.0 && on_segment(c, d, b))
+}
+
+fn point_in_polygon_f64(lon: f64, lat: f64, vertices: &[Point2D]) -> bool {
+    if vertices.len() < 3 {
+        return false;
+    }
+    let mut inside = false;
+    let mut j = vertices.len() - 1;
+    for (i, &vi) in vertices.iter().enumerate() {
+        let vj = vertices[j];
+        let vi_lat = vi.lat as f64;
+        let vj_lat = vj.lat as f64;
+        let vi_lon = vi.lon as f64;
+        let vj_lon = vj.lon as f64;
+        if ((vi_lat > lat) != (vj_lat > lat))
+            && (lon < (vj_lon - vi_lon) * (lat - vi_lat) / (vj_lat - vi_lat) + vi_lon)
+        {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
+}
+
+fn distance_within_polygon(
+    p1: Point2D,
+    p2: Point2D,
+    total_segment_length: f64,
+    vertices: &[Point2D],
+) -> f64 {
+    if total_segment_length <= 0.0 || vertices.len() < 3 {
+        return 0.0;
+    }
+    let dp_x = (p2.lon - p1.lon) as f64;
+    let dp_y = (p2.lat - p1.lat) as f64;
+    let dp_len2 = dp_x * dp_x + dp_y * dp_y;
+    if dp_len2 <= 0.0 {
+        return 0.0;
+    }
+
+    let mut ts = vec![0.0f64, 1.0f64];
+    for i in 0..vertices.len() {
+        let vi = vertices[i];
+        let vj = vertices[(i + 1) % vertices.len()];
+        let e_x = (vj.lon - vi.lon) as f64;
+        let e_y = (vj.lat - vi.lat) as f64;
+        let rx = (vi.lon - p1.lon) as f64;
+        let ry = (vi.lat - p1.lat) as f64;
+        let denom = dp_x * e_y - dp_y * e_x;
+        if denom.abs() > 1e-12 {
+            let t = (rx * e_y - ry * e_x) / denom;
+            let u = (rx * dp_y - ry * dp_x) / denom;
+            if (-1e-9..=1.0 + 1e-9).contains(&t) && (-1e-9..=1.0 + 1e-9).contains(&u) {
+                ts.push(t.clamp(0.0, 1.0));
+            }
+        } else if (rx * dp_y - ry * dp_x).abs() <= 1e-9 {
+            let t_i = (rx * dp_x + ry * dp_y) / dp_len2;
+            let t_j = ((vj.lon - p1.lon) as f64 * dp_x + (vj.lat - p1.lat) as f64 * dp_y) / dp_len2;
+            ts.push(t_i.clamp(0.0, 1.0));
+            ts.push(t_j.clamp(0.0, 1.0));
+        }
+    }
+
+    ts.sort_by(f64::total_cmp);
+    ts.dedup_by(|a, b| (*a - *b).abs() <= 1e-9);
+
+    let mut inside_len = 0.0f64;
+    for w in ts.windows(2) {
+        let dt = w[1] - w[0];
+        if dt > 1e-9 {
+            let tm = 0.5 * (w[0] + w[1]);
+            let mid_lon = p1.lon as f64 + tm * dp_x;
+            let mid_lat = p1.lat as f64 + tm * dp_y;
+            if point_in_polygon_f64(mid_lon, mid_lat, vertices) {
+                inside_len += dt * total_segment_length;
+            }
+        }
+    }
+    inside_len
 }
 
 fn point_in_polygon(pt: Point2D, vertices: &[Point2D]) -> bool {
@@ -476,6 +600,19 @@ fn segment_intersects_polygon(p1: Point2D, p2: Point2D, nogo: &InternalNogo) -> 
     false
 }
 
+#[inline]
+fn scaled_nogo_cost(dist: f64, weight: f64) -> u32 {
+    if !dist.is_finite() || dist <= 0.0 || !weight.is_finite() || weight <= 0.0 {
+        return 0;
+    }
+    let v = (dist * weight).round();
+    if v >= u32::MAX as f64 {
+        u32::MAX
+    } else {
+        v as u32
+    }
+}
+
 /// Tests whether a segment between `p1` and `p2` intersects any no-go area,
 /// using the exact BRouter distance formula from `RoutingContext.calcDistance`.
 pub fn check_segment_against_nogos(
@@ -514,7 +651,13 @@ pub fn check_segment_against_nogos(
                 if nogo.is_hard() {
                     return NogoCheckResult::Blocked;
                 } else if let Some(w) = nogo.weight {
-                    total_added_cost += (d * w).round() as u32;
+                    let penalized_dist = if nogo.is_closed {
+                        distance_within_polygon(p1, p2, d, &nogo.vertices)
+                    } else {
+                        d
+                    };
+                    total_added_cost =
+                        total_added_cost.saturating_add(scaled_nogo_cost(penalized_dist, w));
                 }
             }
             continue;
@@ -522,12 +665,8 @@ pub fn check_segment_against_nogos(
 
         if d <= 0.0 {
             let dist = distance(p1, Point2D::new(nogo.ilon, nogo.ilat));
-            if dist < nogo.radius_m {
-                if nogo.is_hard() {
-                    return NogoCheckResult::Blocked;
-                } else if let Some(w) = nogo.weight {
-                    total_added_cost += (dist * w).round() as u32;
-                }
+            if dist < nogo.radius_m && nogo.is_hard() {
+                return NogoCheckResult::Blocked;
             }
             continue;
         }
@@ -575,7 +714,8 @@ pub fn check_segment_against_nogos(
                     nogo.ilat,
                     nogo.radius_m,
                 );
-                total_added_cost += (dist_within * w).round() as u32;
+                total_added_cost =
+                    total_added_cost.saturating_add(scaled_nogo_cost(dist_within, w));
             }
         }
     }
@@ -594,7 +734,9 @@ pub fn check_polyline_against_nogos(poly: &[Point3D], nogos: &[InternalNogo]) ->
     for i in 0..poly.len() - 1 {
         match check_segment_against_nogos(poly[i].to_2d(), poly[i + 1].to_2d(), nogos) {
             NogoCheckResult::Blocked => return NogoCheckResult::Blocked,
-            NogoCheckResult::Pass { added_cost } => total_added_cost += added_cost,
+            NogoCheckResult::Pass { added_cost } => {
+                total_added_cost = total_added_cost.saturating_add(added_cost);
+            }
         }
     }
     NogoCheckResult::Pass {
@@ -656,5 +798,77 @@ mod tests {
         let cleaned = clean_nogos(&[nogo1, nogo2], &wps);
         assert_eq!(cleaned.len(), 1);
         assert_eq!(cleaned[0].ilon, lon_to_ilon(-0.20));
+    }
+
+    #[test]
+    fn test_collinear_non_overlapping_and_polygon_aabb() {
+        // Collinear disjoint polyline should not block
+        let poly_nogo = NogoArea {
+            lon: 0.0,
+            lat: 0.0,
+            radius_m: 0.0,
+            weight: None,
+            vertices: vec![(-0.10, 51.50), (-0.09, 51.50)],
+            is_closed: false,
+        };
+        let internal = [InternalNogo::from_area(&poly_nogo)];
+        assert_eq!(internal[0].min_lon, lon_to_ilon(-0.10));
+        assert_eq!(internal[0].max_lon, lon_to_ilon(-0.09));
+
+        // Collinear disjoint segment further east
+        let p1 = Point2D::new(lon_to_ilon(-0.08), lat_to_ilat(51.50));
+        let p2 = Point2D::new(lon_to_ilon(-0.07), lat_to_ilat(51.50));
+        assert_eq!(
+            check_segment_against_nogos(p1, p2, &internal),
+            NogoCheckResult::Pass { added_cost: 0 }
+        );
+
+        // Orthogonal crossing segment hits even when NogoArea.radius_m == 0.0
+        let q1 = Point2D::new(lon_to_ilon(-0.095), lat_to_ilat(51.499));
+        let q2 = Point2D::new(lon_to_ilon(-0.095), lat_to_ilat(51.501));
+        assert_eq!(
+            check_segment_against_nogos(q1, q2, &internal),
+            NogoCheckResult::Blocked
+        );
+    }
+
+    #[test]
+    fn test_soft_closed_polygon_clips_distance_and_rejects_non_finite() {
+        // Closed square [0.001, 0.003] x [51.500, 51.502] with soft weight 2.0
+        let poly = NogoArea::from_polygon(
+            vec![
+                (0.001, 51.500),
+                (0.003, 51.500),
+                (0.003, 51.502),
+                (0.001, 51.502),
+            ],
+            true,
+            Some(2.0),
+        )
+        .unwrap();
+        let internal = [InternalNogo::from_area(&poly)];
+
+        // Segment spanning [0.000, 0.004] at lat 51.501: half inside [0.001, 0.003]
+        let p1 = Point2D::new(lon_to_ilon(0.000), lat_to_ilat(51.501));
+        let p2 = Point2D::new(lon_to_ilon(0.004), lat_to_ilat(51.501));
+        let full_dist = distance(p1, p2);
+        let res = check_segment_against_nogos(p1, p2, &internal);
+        let NogoCheckResult::Pass { added_cost } = res else {
+            panic!("expected soft pass");
+        };
+        let expected_half = (0.5 * full_dist * 2.0).round() as u32;
+        assert!(
+            (added_cost as i64 - expected_half as i64).abs() <= 2,
+            "added_cost={added_cost} expected≈{expected_half}"
+        );
+
+        // Non-finite floats rejected across all parsers
+        assert!(parse_lonlats("NaN,51.5|0.1,51.5", None).is_err());
+        assert!(parse_lonlats("-0.1,inf|0.1,51.5", None).is_err());
+        assert!(parse_nogos("-0.1,51.5,NaN|-0.1,inf,50|inf,51.5,50").is_empty());
+        assert!(parse_nogo_polygons("-0.1,51.5,NaN,51.6|-0.1,51.5,0.1,inf", true).is_empty());
+        let valid_nogo = parse_nogos("-0.1,51.5,50,inf");
+        assert_eq!(valid_nogo.len(), 1);
+        assert_eq!(valid_nogo[0].weight, None);
     }
 }

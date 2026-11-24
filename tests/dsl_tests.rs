@@ -270,3 +270,58 @@ fn test_foreign_variable_resolution() {
         .expect_err("way context has no foreign context");
     assert!(err.contains("unknown foreign context: way"), "{err}");
 }
+
+#[test]
+fn test_dsl_boolean_folding_headers_overrides_and_depth() {
+    use std::collections::HashMap;
+
+    let lookups = LookupData::load_from_file(repo_path("profiles/lookups.dat"))
+        .expect("Failed to parse lookups.dat");
+
+    // 1. Header whitespace, Or/And non-boolean folding, and persistent param overrides
+    let src = r#"
+---model: btools.router.KinematicModel
+---context: global
+assign flag = 1
+assign flag = 2
+---context: way
+assign num = switch highway=primary 5 2
+assign costfactor = or false num
+assign turncost = and true num
+assign initialcost = or num false
+assign uphillcost = and num true
+assign downhillcost = flag
+---context: node
+assign initialcost = 0
+"#;
+    let mut params = HashMap::new();
+    params.insert("flag".to_string(), "9".to_string());
+
+    let profile =
+        Profile::parse_with_params("dsl_edge_test", src, &lookups, Some(&params)).unwrap();
+    assert_eq!(
+        profile.model_class.as_deref(),
+        Some("btools.router.KinematicModel")
+    );
+    assert_eq!(profile.get_global_var("flag", 0.0), 9.0);
+
+    let mut evaluator = ProfileEvaluator::new(&profile, &lookups.way, &lookups.node);
+    let mut ld = vec![0i32; lookups.way.names.len()];
+    let hw_idx = lookups.way.get_name_idx("highway").unwrap();
+    ld[hw_idx] = lookups.way.get_value_idx(hw_idx, "primary").unwrap();
+
+    let way_res = evaluator.evaluate_way(&ld);
+    assert_eq!(way_res.costfactor, 1.0);
+    assert_eq!(way_res.turncost, 1.0);
+    assert_eq!(way_res.initialcost, 1.0);
+    assert_eq!(way_res.uphillcost, 1.0);
+    assert_eq!(way_res.downhillcost, 9.0);
+
+    // 2. Deep nesting returns an error cleanly instead of overflowing stack
+    let deep_nots = "not ".repeat(300);
+    let deep_src = format!(
+        "---context: global\n---context: way\nassign costfactor = {deep_nots}true\n---context: node\nassign initialcost = 0\n"
+    );
+    let err = Profile::parse("deep_test", &deep_src, &lookups).unwrap_err();
+    assert!(err.contains("maximum depth"), "unexpected err: {err}");
+}

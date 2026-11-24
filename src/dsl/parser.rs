@@ -227,8 +227,12 @@ impl Profile {
 
         while let Some(token) = tokenizer.next_token() {
             if let Some(rest) = token.strip_prefix("---context:") {
-                let ctx = rest.trim();
-                current_section = match ctx {
+                let ctx_tok = if rest.trim().is_empty() {
+                    tokenizer.next_token().unwrap_or_default()
+                } else {
+                    rest.trim().to_string()
+                };
+                current_section = match ctx_tok.as_str() {
                     "global" => "global",
                     "way" => "way",
                     "node" => "node",
@@ -237,7 +241,14 @@ impl Profile {
                 continue;
             }
             if let Some(rest) = token.strip_prefix("---model:") {
-                model_class = Some(rest.trim().to_string());
+                let model_tok = if rest.trim().is_empty() {
+                    tokenizer.next_token()
+                } else {
+                    Some(rest.trim().to_string())
+                };
+                if let Some(m) = model_tok.filter(|s| !s.is_empty()) {
+                    model_class = Some(m);
+                }
                 continue;
             }
 
@@ -580,8 +591,8 @@ fn parse_statement(
         idx
     };
 
-    let raw_expr = parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
-    let opt_expr = if let Some(protected_val) = protected_consts[var_idx].take() {
+    let raw_expr = parse_expression(tokens, cursor, lookups, var_map, last_assigned_const, 0)?;
+    let opt_expr = if let Some(protected_val) = protected_consts[var_idx] {
         BExpr::Number(protected_val)
     } else {
         raw_expr.optimize()
@@ -598,13 +609,21 @@ fn parse_statement(
     })
 }
 
+const MAX_EXPR_DEPTH: usize = 256;
+
 fn parse_expression(
     tokens: &[String],
     cursor: &mut usize,
     lookups: &ContextLookups,
     var_map: &HashMap<String, usize>,
     last_assigned_const: &[Option<f32>],
+    depth: usize,
 ) -> Result<BExpr, String> {
+    if depth > MAX_EXPR_DEPTH {
+        return Err(format!(
+            "Expression nesting exceeds maximum depth ({MAX_EXPR_DEPTH})"
+        ));
+    }
     if *cursor >= tokens.len() {
         return Err("Unexpected end of expression tokens".to_string());
     }
@@ -624,11 +643,30 @@ fn parse_expression(
 
     let expr = match token.as_str() {
         "switch" => {
-            let cond = parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
-            let then_expr =
-                parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
-            let else_expr =
-                parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
+            let cond = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
+            let then_expr = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
+            let else_expr = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
             BExpr::Switch {
                 cond: Box::new(cond),
                 then_expr: Box::new(then_expr),
@@ -636,13 +674,32 @@ fn parse_expression(
             }
         }
         "if" => {
-            let cond = parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
+            let cond = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
             expect_token(tokens, cursor, "then")?;
-            let then_expr =
-                parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
+            let then_expr = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
             expect_token(tokens, cursor, "else")?;
-            let else_expr =
-                parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
+            let else_expr = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
             BExpr::Switch {
                 cond: Box::new(cond),
                 then_expr: Box::new(then_expr),
@@ -650,7 +707,14 @@ fn parse_expression(
             }
         }
         "not" => {
-            let inner = parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
+            let inner = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
             BExpr::Not(Box::new(inner))
         }
         "or" | "and" | "xor" | "add" | "sub" | "multiply" | "divide" | "max" | "min" | "equal"
@@ -670,8 +734,22 @@ fn parse_expression(
                 "lesser" => BinaryOp::Lesser,
                 _ => unreachable!(),
             };
-            let left = parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
-            let right = parse_expression(tokens, cursor, lookups, var_map, last_assigned_const)?;
+            let left = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
+            let right = parse_expression(
+                tokens,
+                cursor,
+                lookups,
+                var_map,
+                last_assigned_const,
+                depth + 1,
+            )?;
             BExpr::Binary {
                 op: bin_op,
                 left: Box::new(left),

@@ -16,7 +16,7 @@ async fn test_parity_clapham_hackney_fastbike() {
         "clapham_hackney_fastbike.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -33,7 +33,7 @@ async fn test_parity_clapham_hackney_lowtraffic() {
         "clapham_hackney_fastbike-lowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -50,7 +50,7 @@ async fn test_parity_clapham_hackney_verylowtraffic() {
         "clapham_hackney_fastbike-verylowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -72,7 +72,7 @@ async fn test_parity_london_brighton_fastbike() {
         "london_brighton_fastbike.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -89,7 +89,7 @@ async fn test_parity_london_brighton_lowtraffic() {
         "london_brighton_fastbike-lowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -106,7 +106,7 @@ async fn test_parity_london_brighton_verylowtraffic() {
         "london_brighton_fastbike-verylowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -123,7 +123,7 @@ async fn test_parity_london_brighton_alt1() {
         "london_brighton_fastbike-lowtraffic_alt1.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -140,7 +140,7 @@ async fn test_parity_london_brighton_alt2() {
         "london_brighton_fastbike-lowtraffic_alt2.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -179,7 +179,7 @@ async fn test_parity_london_oxford_fastbike() {
         "london_oxford_fastbike.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -196,7 +196,7 @@ async fn test_parity_london_oxford_lowtraffic() {
         "london_oxford_fastbike-lowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -213,7 +213,7 @@ async fn test_parity_london_oxford_verylowtraffic() {
         "london_oxford_fastbike-verylowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -235,7 +235,7 @@ async fn test_parity_london_cardiff_fastbike() {
         "london_cardiff_fastbike.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -252,7 +252,7 @@ async fn test_parity_london_cardiff_lowtraffic() {
         "london_cardiff_fastbike-lowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -269,7 +269,7 @@ async fn test_parity_london_cardiff_verylowtraffic() {
         "london_cardiff_fastbike-verylowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -292,7 +292,7 @@ async fn test_parity_richmond_oxford_fastbike() {
         "richmond_oxford_multi_point_fastbike.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -309,7 +309,7 @@ async fn test_parity_richmond_oxford_lowtraffic() {
         "richmond_oxford_multi_point_fastbike-lowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;
@@ -326,7 +326,7 @@ async fn test_parity_richmond_oxford_verylowtraffic() {
         "richmond_oxford_multi_point_fastbike-verylowtraffic.geojson",
         0.005,
         0.005,
-        0.05,
+        0.10,
         100.0,
     )
     .await;

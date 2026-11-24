@@ -123,6 +123,30 @@ pub enum BExpr {
 }
 
 impl BExpr {
+    /// Returns true if evaluating this expression can only produce `0.0` or `1.0`.
+    pub fn is_boolean(&self) -> bool {
+        match self {
+            BExpr::Number(n) => *n == 0.0 || *n == 1.0,
+            BExpr::Lookup { .. } | BExpr::Not(_) => true,
+            BExpr::Binary { op, .. } => matches!(
+                op,
+                BinaryOp::Or
+                    | BinaryOp::And
+                    | BinaryOp::Xor
+                    | BinaryOp::Equal
+                    | BinaryOp::Greater
+                    | BinaryOp::Lesser
+            ),
+            BExpr::Switch {
+                then_expr,
+                else_expr,
+                ..
+            } => then_expr.is_boolean() && else_expr.is_boolean(),
+            BExpr::Assign { expr, .. } => expr.is_boolean(),
+            _ => false,
+        }
+    }
+
     /// Attempts constant folding and AST simplification matching BExpression.tryCollapse / tryEvaluateConstant.
     pub fn optimize(self) -> Self {
         match self {
@@ -150,13 +174,17 @@ impl BExpr {
                             if n != 0.0 {
                                 return BExpr::Number(1.0);
                             }
-                            return opt_r;
+                            if opt_r.is_boolean() {
+                                return opt_r;
+                            }
                         }
                         if let BExpr::Number(n) = opt_r {
                             if n != 0.0 {
                                 return BExpr::Number(1.0);
                             }
-                            return opt_l;
+                            if opt_l.is_boolean() {
+                                return opt_l;
+                            }
                         }
                     }
                     BinaryOp::And => {
@@ -164,13 +192,17 @@ impl BExpr {
                             if n == 0.0 {
                                 return BExpr::Number(0.0);
                             }
-                            return opt_r;
+                            if opt_r.is_boolean() {
+                                return opt_r;
+                            }
                         }
                         if let BExpr::Number(n) = opt_r {
                             if n == 0.0 {
                                 return BExpr::Number(0.0);
                             }
-                            return opt_l;
+                            if opt_l.is_boolean() {
+                                return opt_l;
+                            }
                         }
                     }
                     BinaryOp::Add => {

@@ -198,22 +198,53 @@ impl DecodedMicroCache {
         if asize < 4 {
             return Err(Error::new(ErrorKind::InvalidData, "Cell data too short"));
         }
+        if divisor <= 0 {
+            return Err(Error::new(ErrorKind::InvalidData, "Invalid divisor"));
+        }
 
         let cellsize = 1_000_000 / divisor;
+        let max_bits = (asize - 4).saturating_mul(8);
 
         let mut bc = StatCoderContext::new(&mut cell_bytes);
 
-        let way_tag_coder = TagValueCoder::new(&mut bc, way_validator);
-        let node_tag_coder = TagValueCoder::new(&mut bc, None);
+        let way_tag_coder = TagValueCoder::try_new(&mut bc, way_validator)?;
+        let node_tag_coder = TagValueCoder::try_new(&mut bc, None)?;
         let node_idx_diff = NoisyDiffCoder::new(&mut bc);
         let node_ele_diff = NoisyDiffCoder::new(&mut bc);
         let ext_lon_diff = NoisyDiffCoder::new(&mut bc);
         let ext_lat_diff = NoisyDiffCoder::new(&mut bc);
         let trans_ele_diff = NoisyDiffCoder::new(&mut bc);
+        for coder in [
+            &node_idx_diff,
+            &node_ele_diff,
+            &ext_lon_diff,
+            &ext_lat_diff,
+            &trans_ele_diff,
+        ] {
+            if !(0..=30).contains(&coder.noisybits) {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "MicroCache noisybits out of range",
+                ));
+            }
+        }
 
-        let size = bc.decode_noisy_number(5) as usize;
+        let size_i32 = bc.decode_noisy_number(5);
+        if bc.bit_coder.is_past_eof() || size_i32 < 0 || (size_i32 as usize) > max_bits {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Invalid MicroCache node count",
+            ));
+        }
+        let size = size_i32 as usize;
         let mut faid = vec![0i32; size];
         bc.decode_sorted_array(&mut faid, 0, size, 29, 0);
+        if bc.bit_coder.is_past_eof() {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Truncated MicroCache node index array",
+            ));
+        }
 
         let mut nodes = Vec::with_capacity(size);
         for &id32 in &faid {
@@ -233,6 +264,12 @@ impl DecodedMicroCache {
         let mut selev = 0i32;
 
         for n in 0..size {
+            if bc.bit_coder.is_past_eof() {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Truncated MicroCache node body",
+                ));
+            }
             let ilon = nodes[n].ilon;
             let ilat = nodes[n].ilat;
 
@@ -240,19 +277,31 @@ impl DecodedMicroCache {
             let mut tr_exceptions = 0i16;
             loop {
                 let feature_id = bc.decode_var_bits();
+                if bc.bit_coder.is_past_eof() || feature_id < 0 {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Truncated MicroCache turn restriction",
+                    ));
+                }
                 if feature_id == 0 {
                     break;
                 }
                 let bitsize = bc.decode_noisy_number(5);
+                if bc.bit_coder.is_past_eof() || bitsize < 0 || (bitsize as usize) > max_bits {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid MicroCache feature bitsize",
+                    ));
+                }
 
                 if feature_id == 2 {
                     tr_exceptions = bc.decode_bounded(1023) as i16;
                 } else if feature_id == 1 {
                     let is_positive = bc.decode_bit();
-                    let from_lon = ilon + bc.decode_noisy_diff(10);
-                    let from_lat = ilat + bc.decode_noisy_diff(10);
-                    let to_lon = ilon + bc.decode_noisy_diff(10);
-                    let to_lat = ilat + bc.decode_noisy_diff(10);
+                    let from_lon = ilon.wrapping_add(bc.decode_noisy_diff(10));
+                    let from_lat = ilat.wrapping_add(bc.decode_noisy_diff(10));
+                    let to_lon = ilon.wrapping_add(bc.decode_noisy_diff(10));
+                    let to_lat = ilat.wrapping_add(bc.decode_noisy_diff(10));
 
                     nodes[n].turn_restrictions.push(DecodedTurnRestriction {
                         exceptions: tr_exceptions,
@@ -268,14 +317,35 @@ impl DecodedMicroCache {
                 }
             }
 
-            selev += node_ele_diff.decode_signed_value(&mut bc);
+            selev = selev.wrapping_add(node_ele_diff.decode_signed_value(&mut bc));
             nodes[n].selev = selev as i16;
             nodes[n].node_tags = node_tag_coder.decode_tag_value_set(&mut bc);
 
-            let links_count = bc.decode_noisy_number(1) as usize;
+            let links_count_i32 = bc.decode_noisy_number(1);
+            if bc.bit_coder.is_past_eof()
+                || links_count_i32 < 0
+                || (links_count_i32 as usize) > max_bits
+            {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid MicroCache link count",
+                ));
+            }
+            let links_count = links_count_i32 as usize;
             for _ in 0..links_count {
+                if bc.bit_coder.is_past_eof() {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Truncated MicroCache link",
+                    ));
+                }
                 let node_idx_offset = node_idx_diff.decode_signed_value(&mut bc);
-                let node_idx_i32 = n as i32 + node_idx_offset;
+                let Some(node_idx_i32) = (n as i32).checked_add(node_idx_offset) else {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "MicroCache internal link node index overflow",
+                    ));
+                };
                 if node_idx_i32 < 0 || (node_idx_i32 as usize) >= nodes.len() {
                     return Err(Error::new(
                         ErrorKind::InvalidData,
@@ -300,8 +370,8 @@ impl DecodedMicroCache {
                     is_reverse = bc.decode_bit();
                     dlon_remaining = ext_lon_diff.decode_signed_value(&mut bc);
                     dlat_remaining = ext_lat_diff.decode_signed_value(&mut bc);
-                    target_lon = ilon + dlon_remaining;
-                    target_lat = ilat + dlat_remaining;
+                    target_lon = ilon.wrapping_add(dlon_remaining);
+                    target_lat = ilat.wrapping_add(dlat_remaining);
                 }
 
                 let way_tags = way_tag_coder.decode_tag_value_set(&mut bc);
@@ -309,12 +379,27 @@ impl DecodedMicroCache {
                 let mut geometry = Vec::new();
                 if !is_reverse {
                     let transcount = bc.decode_var_bits();
+                    if bc.bit_coder.is_past_eof()
+                        || transcount < 0
+                        || (transcount as usize) > max_bits
+                    {
+                        return Err(Error::new(
+                            ErrorKind::InvalidData,
+                            "Invalid MicroCache geometry point count",
+                        ));
+                    }
                     let mut count = transcount + 1;
                     for _ in 0..transcount {
+                        if bc.bit_coder.is_past_eof() {
+                            return Err(Error::new(
+                                ErrorKind::InvalidData,
+                                "Truncated MicroCache geometry",
+                            ));
+                        }
                         let dlon = bc.decode_predicted_value(dlon_remaining / count);
                         let dlat = bc.decode_predicted_value(dlat_remaining / count);
-                        dlon_remaining -= dlon;
-                        dlat_remaining -= dlat;
+                        dlon_remaining = dlon_remaining.wrapping_sub(dlon);
+                        dlat_remaining = dlat_remaining.wrapping_sub(dlat);
                         count -= 1;
                         let delev = trans_ele_diff.decode_signed_value(&mut bc);
                         if way_tags.is_some() {
@@ -335,25 +420,31 @@ impl DecodedMicroCache {
             }
         }
 
-        // Integrity check of cell footer CRC.
+        // Integrity check of cell footer CRC and exact decoded byte length.
         // In BRouter RD5 format, the microcache cell footer stores `crc ^ 2`.
-        // Matches Java class `btools.codec.MicroCache2`:
-        //   if ((crcData ^ 2) != crcFooter) throw new IOException("MicroCache cell checksum error");
         let read_bytes = ((bc.bit_coder.get_reading_bit_position() + 7) >> 3) as usize;
+        let crc_data = crc::crc(&bc.bit_coder.ab[..asize - 4]);
+        let mut dis = ByteDataReader::with_offset(bc.bit_coder.ab, asize - 4);
+        let crc_footer = dis.read_int();
+        if (crc_data ^ 2) != crc_footer {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "MicroCache cell checksum error: computed {:x}, footer {:x}",
+                    crc_data ^ 2,
+                    crc_footer
+                ),
+            ));
+        }
         if read_bytes != asize - 4 {
-            let crc_data = crc::crc(&bc.bit_coder.ab[..asize - 4]);
-            let mut dis = ByteDataReader::with_offset(bc.bit_coder.ab, asize - 4);
-            let crc_footer = dis.read_int();
-            if (crc_data ^ 2) != crc_footer {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    format!(
-                        "MicroCache cell checksum error: computed {:x}, footer {:x}",
-                        crc_data ^ 2,
-                        crc_footer
-                    ),
-                ));
-            }
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "MicroCache cell length mismatch: read {} bytes, expected {}",
+                    read_bytes,
+                    asize - 4
+                ),
+            ));
         }
 
         Ok(Self {

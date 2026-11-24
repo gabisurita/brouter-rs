@@ -218,6 +218,12 @@ impl QuadHeap {
         &self.data
     }
 
+    #[inline]
+    pub fn drain_all(&mut self, out: &mut Vec<HeapItem>) {
+        out.clear();
+        out.append(&mut self.data);
+    }
+
     #[inline(always)]
     pub fn push(&mut self, item: HeapItem) {
         let mut hole = self.data.len();

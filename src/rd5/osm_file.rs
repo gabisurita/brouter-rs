@@ -28,8 +28,8 @@ pub struct OsmFile {
 
 impl OsmFile {
     pub fn new(pf: &mut PhysicalFile, lon_degree: i32, lat_degree: i32) -> io::Result<Self> {
-        let lon_mod5 = lon_degree % 5;
-        let lat_mod5 = lat_degree % 5;
+        let lon_mod5 = lon_degree.rem_euclid(5);
+        let lat_mod5 = lat_degree.rem_euclid(5);
         let tile_index = (lon_mod5 * 5 + lat_mod5) as usize;
 
         let (start_offset, end_offset) = pf.get_square_offsets(tile_index);
@@ -39,7 +39,7 @@ impl OsmFile {
         let indexsize = ncaches * 4;
         let elevation_type = pf.elevation_type;
 
-        if start_offset == end_offset {
+        if start_offset >= end_offset {
             // Empty 1°×1° square (e.g. ocean)
             return Ok(Self {
                 lon_degree,
@@ -60,7 +60,7 @@ impl OsmFile {
         pf.file.read_exact(&mut index_buf)?;
 
         let header_crc = crc::crc(&index_buf);
-        if pf.file_header_crcs[tile_index] != header_crc {
+        if pf.has_trailer && pf.file_header_crcs[tile_index] != header_crc {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("Sub-index checksum mismatch for tile {}", tile_index),
@@ -107,10 +107,10 @@ impl OsmFile {
 
     pub fn read_cell_bytes(&self, file: &mut File, sub_idx: usize) -> io::Result<Vec<u8>> {
         let (start, end) = self.get_cell_offsets(sub_idx);
-        let size = (end - start) as usize;
-        if size == 0 {
+        if end <= start {
             return Ok(Vec::new());
         }
+        let size = (end - start) as usize;
 
         let mut buf = vec![0u8; size];
         file.seek(SeekFrom::Start(start))?;

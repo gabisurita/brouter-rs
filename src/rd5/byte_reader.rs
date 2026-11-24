@@ -97,4 +97,39 @@ impl<'a> ByteDataReader<'a> {
     pub fn has_more_data(&self) -> bool {
         self.offset < self.ab.len()
     }
+
+    pub fn try_read_int(&mut self) -> Option<i32> {
+        if self.offset.checked_add(4)? > self.ab.len() {
+            return None;
+        }
+        Some(self.read_int())
+    }
+
+    pub fn try_read_long(&mut self) -> Option<i64> {
+        if self.offset.checked_add(8)? > self.ab.len() {
+            return None;
+        }
+        Some(self.read_long())
+    }
+
+    pub fn try_read_byte(&mut self) -> Option<i8> {
+        if self.offset >= self.ab.len() {
+            return None;
+        }
+        Some(self.read_byte())
+    }
+
+    pub fn try_read_var_length_unsigned(&mut self) -> Option<i32> {
+        let mut v = 0i32;
+        for shift in [0, 7, 14, 21] {
+            let b = self.try_read_byte()?;
+            v |= ((b as i32) & 0x7f) << shift;
+            if b >= 0 {
+                return Some(v);
+            }
+        }
+        let b = self.try_read_byte()?;
+        v |= ((b as i32) & 0xf) << 28;
+        Some(v)
+    }
 }

@@ -90,11 +90,19 @@ impl RouteResult {
     /// Detects and trims out-and-back retraced spikes at a via point between `self` and `next`,
     /// matching `RoutingEngine.snapPathConnection`.
     pub fn snap_path_connection(&mut self, next: &mut RouteResult, max_dist_m: f64) -> bool {
+        self.snap_path_connection_trim(next, max_dist_m).is_some()
+    }
+
+    pub(crate) fn snap_path_connection_trim(
+        &mut self,
+        next: &mut RouteResult,
+        max_dist_m: f64,
+    ) -> Option<usize> {
         const MAX_STEPS_CHECK: usize = 40;
         let our_size = self.points.len();
         let next_size = next.points.len();
         if our_size < 2 || next_size < 2 {
-            return false;
+            return None;
         }
 
         let stop = our_size.saturating_sub(MAX_STEPS_CHECK).max(1);
@@ -121,7 +129,7 @@ impl RouteResult {
                     );
                     way_distance += spatial::distance(p_prev, p_fore);
                     if max_dist_m > 0.0 && way_distance > max_dist_m {
-                        return false;
+                        return None;
                     }
                 }
                 matched_steps += 1;
@@ -136,13 +144,13 @@ impl RouteResult {
         }
 
         if matched_steps < 2 {
-            return false;
+            return None;
         }
 
         let trim_count = matched_steps - 1;
         let new_self_len = our_size - trim_count;
         if new_self_len < 1 || trim_count >= next_size {
-            return false;
+            return None;
         }
 
         self.points.truncate(new_self_len);
@@ -188,7 +196,7 @@ impl RouteResult {
         next.total_time_s = (next.total_time_s - base_time).max(0.0);
         next.total_energy_j = (next.total_energy_j - base_energy).max(0.0);
         next.total_cost = next.total_cost.saturating_sub(base_cost);
-        true
+        Some(trim_count)
     }
 
     /// Recomputes `filtered_ascend_m` and `plain_ascend_m` across the full track.
@@ -257,7 +265,12 @@ impl RouteResult {
                 let speed = (dist as f32) / tmptime * 3.6f32;
                 speed_min = speed_min.min(speed);
             }
-            if tmptime == 1.0f32 {
+            let is_beeline = self
+                .messages
+                .get(i)
+                .and_then(|m| m.as_ref())
+                .is_some_and(|m| m.way_key_values == "beeline=yes");
+            if tmptime == 1.0f32 && is_beeline {
                 direct_map.push((i, dist));
             }
             last_time = pt.time_from_start_s;
@@ -266,6 +279,9 @@ impl RouteResult {
 
         let our_size = self.points.len();
         for (key, value) in direct_map {
+            if speed_min >= 9999.0 || speed_min <= 0.0 || value <= 0 {
+                continue;
+            }
             let add_time = (value as f32) / (speed_min / 3.6f32);
             let mut add_energy = 0.0f64;
             if key > 0 {
@@ -274,12 +290,12 @@ impl RouteResult {
                 let incline = if selev_prev == i16::MIN || selev_curr == i16::MIN {
                     0.0
                 } else {
-                    (self.points[key - 1].elevation_m - self.points[key].elevation_m)
+                    (self.points[key].elevation_m - self.points[key - 1].elevation_m)
                         / (value as f64)
                 };
                 let f_roll = kinematic_cfg.total_mass * GRAVITY * (kinematic_cfg.c_r + incline);
                 let spd = (speed_min as f64) / 3.6;
-                add_energy = (value as f64) * (kinematic_cfg.s_c_x * spd * spd + f_roll);
+                add_energy = ((value as f64) * (kinematic_cfg.s_c_x * spd * spd + f_roll)).max(0.0);
             }
             for idx in key..our_size {
                 self.points[idx].time_from_start_s += add_time;
@@ -433,6 +449,7 @@ impl RouteResult {
             times_block.push(']');
         }
 
+        let escaped_profile = escape_json(profile_name);
         format!(
             r#"{{
   "type": "FeatureCollection",
@@ -441,7 +458,7 @@ impl RouteResult {
       "type": "Feature",
       "properties": {{
         "creator": "brouter-rs",
-        "name": "{profile_name}_route",
+        "name": "{escaped_profile}_route",
         "track-length": "{}",
         "filtered ascend": "{}",
         "plain-ascend": "{}",
@@ -580,7 +597,24 @@ fn format_decimal_clean(v: f64, decimals: usize) -> String {
 }
 
 fn escape_json(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\x08' => out.push_str("\\b"),
+            '\x0c' => out.push_str("\\f"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c < '\x20' => {
+                use std::fmt::Write;
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 fn escape_xml(s: &str) -> String {

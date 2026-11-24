@@ -220,6 +220,7 @@ pub struct RoutingGraph {
     pub cell_divisors: FastHashMap<(i32, i32), i32>,
     pub non_empty_loaded_cells: usize,
     pub track_spatial_grid: bool,
+    pub spatial_grid_dirty: bool,
 }
 
 pub const GRID_CELL_SIZE: i32 = 10_000;
@@ -249,6 +250,7 @@ impl RoutingGraph {
             cell_divisors: FastHashMap::default(),
             non_empty_loaded_cells: 0,
             track_spatial_grid: false,
+            spatial_grid_dirty: false,
         }
     }
 
@@ -289,6 +291,7 @@ impl RoutingGraph {
         self.loaded_cells.shrink_to_fit();
         self.non_empty_loaded_cells = 0;
         self.track_spatial_grid = false;
+        self.spatial_grid_dirty = false;
         self.total_edges = 0;
         self.is_resolved = false;
     }
@@ -354,6 +357,7 @@ impl RoutingGraph {
 
         self.spatial_grid.clear();
         self.spatial_grid.shrink_to_fit();
+        self.spatial_grid_dirty = !self.nodes.is_empty();
 
         retain_and_shrink(&mut self.edges, 4096, |k, _| keep_nodes.contains(k));
         for edges_vec in self.edges.values() {
@@ -402,30 +406,51 @@ impl RoutingGraph {
             e.target_edges_count = t_count;
         }
 
-        let total_geom: usize = self
-            .flat_edges
-            .iter()
-            .chain(self.edges.values().flatten())
-            .map(|e| e.geom_len as usize)
-            .sum();
-        let mut new_geom = Vec::with_capacity(total_geom);
-        let old_pool = &self.geometry_pool;
-        let mut relocate_geom = |e: &mut GraphEdge| {
+        let mut total_geom = 0usize;
+        let mut geom_edges = 0usize;
+        for e in self.flat_edges.iter().chain(self.edges.values().flatten()) {
             if e.geom_len > 0 {
-                let start = e.geom_start as usize;
-                e.geom_start = new_geom.len() as u32;
-                new_geom.extend_from_slice(&old_pool[start..start + e.geom_len as usize]);
-            } else {
+                total_geom += e.geom_len as usize;
+                geom_edges += 1;
+            }
+        }
+        if geom_edges == 0 {
+            for e in self
+                .flat_edges
+                .iter_mut()
+                .chain(self.edges.values_mut().flatten())
+            {
                 e.geom_start = 0;
             }
-        };
-        for e in &mut self.flat_edges {
-            relocate_geom(e);
+            self.geometry_pool.clear();
+            self.geometry_pool.shrink_to_fit();
+        } else {
+            let old_pool = &self.geometry_pool;
+            let mut new_geom = Vec::with_capacity(total_geom.min(old_pool.len()));
+            let mut relocated_geom: FastHashMap<u64, u32> =
+                FastHashMap::with_capacity_and_hasher(geom_edges, Default::default());
+            let mut relocate_geom = |e: &mut GraphEdge| {
+                if e.geom_len > 0 {
+                    let start = e.geom_start as usize;
+                    let key = ((e.geom_len as u64) << 32) | (e.geom_start as u64);
+                    let new_start = *relocated_geom.entry(key).or_insert_with(|| {
+                        let s = new_geom.len() as u32;
+                        new_geom.extend_from_slice(&old_pool[start..start + e.geom_len as usize]);
+                        s
+                    });
+                    e.geom_start = new_start;
+                } else {
+                    e.geom_start = 0;
+                }
+            };
+            for e in &mut self.flat_edges {
+                relocate_geom(e);
+            }
+            for e in self.edges.values_mut().flatten() {
+                relocate_geom(e);
+            }
+            self.geometry_pool = new_geom;
         }
-        for e in self.edges.values_mut().flatten() {
-            relocate_geom(e);
-        }
-        self.geometry_pool = new_geom;
 
         retain_and_shrink(&mut self.nodes, 4096, |k, _| keep_nodes.contains(k));
         retain_and_shrink(&mut self.turn_restrictions, 256, |k, _| {
@@ -732,6 +757,9 @@ impl RoutingGraph {
     /// Incorporates a borrowed decoded MicroCache cell into the graph.
     pub fn add_micro_cache_ref(&mut self, cache: &DecodedMicroCache) {
         let track_grid = self.track_spatial_grid;
+        if !track_grid && !cache.nodes.is_empty() {
+            self.spatial_grid_dirty = true;
+        }
         for node in &cache.nodes {
             let s_id = make_node_id(node.ilon, node.ilat);
             let s_lon = node.ilon;
@@ -782,9 +810,9 @@ impl RoutingGraph {
                     (0, 0)
                 } else {
                     let start = self.geometry_pool.len() as u32;
-                    let len = link.geometry.len() as u16;
-                    self.geometry_pool.extend_from_slice(&link.geometry);
-                    (start, len)
+                    let len = link.geometry.len().min(u16::MAX as usize);
+                    self.geometry_pool.extend_from_slice(&link.geometry[..len]);
+                    (start, len as u16)
                 };
 
                 let edge_fwd = GraphEdge {
@@ -918,7 +946,8 @@ impl RoutingGraph {
         if !self.has_cell_provider() {
             return;
         }
-        if self.spatial_grid.is_empty() && !self.nodes.is_empty() {
+        if (self.spatial_grid.is_empty() || self.spatial_grid_dirty) && !self.nodes.is_empty() {
+            self.spatial_grid.clear();
             for &s_id in self.nodes.keys() {
                 let s_pos = super::node::unpack_node_id(s_id);
                 let cell = (
@@ -927,6 +956,9 @@ impl RoutingGraph {
                 );
                 self.spatial_grid.entry(cell).or_default().push(s_id);
             }
+            self.spatial_grid_dirty = false;
+        } else if self.nodes.is_empty() {
+            self.spatial_grid_dirty = false;
         }
         self.track_spatial_grid = true;
         let mut y = min_ilat;
@@ -968,11 +1000,9 @@ impl RoutingGraph {
             for cy in min_cy..=max_cy {
                 if let Some(nodes) = self.spatial_grid.get(&(cx, cy)) {
                     for &s_id in nodes {
-                        if let Some(edges) = self.edges.get(&s_id) {
-                            for e in edges {
-                                if e.is_reverse && e.is_geometry_empty() {
-                                    target_coords.push((e.target_lon, e.target_lat));
-                                }
+                        for e in self.get_edges(s_id) {
+                            if e.is_reverse && e.is_geometry_empty() {
+                                target_coords.push((e.target_lon, e.target_lat));
                             }
                         }
                     }
@@ -1056,7 +1086,7 @@ impl RoutingGraph {
         let count = edges.len() as u16;
         let base_edge_idx = self.total_edges as u32;
         self.total_edges += edges.len();
-        self.node_edge_offsets.insert(s_id, (start, count));
+        let mut has_self_loop = false;
 
         for (e_i, mut edge) in edges.into_iter().enumerate() {
             let edge_idx = base_edge_idx + e_i as u32;
@@ -1074,10 +1104,18 @@ impl RoutingGraph {
                         .round()
                         .max(1.0) as f32;
             }
+            let is_self_loop = edge.target_id == s_id;
+            if is_self_loop {
+                has_self_loop = true;
+            }
             let target_cell_checked =
                 self.is_cell_checked_at_microdeg(edge.target_lon, edge.target_lat);
-            let t_offset = self.node_edge_offsets.get(&edge.target_id).copied();
-            let is_dead = if !target_cell_checked {
+            let t_offset = if is_self_loop {
+                None
+            } else {
+                self.node_edge_offsets.get(&edge.target_id).copied()
+            };
+            let is_dead = if is_self_loop || !target_cell_checked {
                 false
             } else if let Some(&parent) = self.dead_end_parents.get(&edge.target_id) {
                 parent == s_id
@@ -1143,6 +1181,47 @@ impl RoutingGraph {
             }
             self.flat_edges.push(edge);
         }
+        self.node_edge_offsets.insert(s_id, (start, count));
+        if has_self_loop {
+            let s_idx = start as usize;
+            let e_idx = s_idx + count as usize;
+            for i in s_idx..e_idx {
+                if self.flat_edges[i].target_id != s_id {
+                    continue;
+                }
+                self.flat_edges[i].target_edges_start = start;
+                self.flat_edges[i].target_edges_count = count;
+                if self.flat_edges[i].rev_edge_idx != u32::MAX {
+                    continue;
+                }
+                let edge_idx = self.flat_edges[i].edge_idx;
+                let desc_id = self.flat_edges[i].desc_id;
+                let is_rev = self.flat_edges[i].is_reverse;
+                let mut exact_rev: Option<usize> = None;
+                let mut fallback_rev: Option<usize> = None;
+                for (offset, cand) in self.flat_edges[s_idx..e_idx].iter().enumerate() {
+                    let j = s_idx + offset;
+                    if j == i || cand.target_id != s_id {
+                        continue;
+                    }
+                    if cand.desc_id == desc_id
+                        && cand.is_reverse != is_rev
+                        && cand.rev_edge_idx == u32::MAX
+                    {
+                        exact_rev = Some(j);
+                        break;
+                    } else if fallback_rev.is_none() {
+                        fallback_rev = Some(j);
+                    }
+                }
+                if let Some(rev_j) = exact_rev.or(fallback_rev) {
+                    self.flat_edges[i].rev_edge_idx = self.flat_edges[rev_j].edge_idx;
+                    if self.flat_edges[rev_j].rev_edge_idx == u32::MAX {
+                        self.flat_edges[rev_j].rev_edge_idx = edge_idx;
+                    }
+                }
+            }
+        }
         self.is_resolved = true;
         (start, count)
     }
@@ -1155,11 +1234,7 @@ impl RoutingGraph {
 
     /// Returns total number of directed edges in the graph.
     pub fn edge_count(&self) -> usize {
-        if self.total_edges > 0 {
-            self.total_edges
-        } else {
-            self.edges.values().map(|v| v.len()).sum()
-        }
+        self.flat_edges.len() + self.edges.values().map(|v| v.len()).sum::<usize>()
     }
 
     /// Snaps a geographic coordinate described by [`SnapRequest`] to the nearest accessible road edge,
@@ -1217,7 +1292,20 @@ impl RoutingGraph {
         lookups: &LookupData,
         way_lookup_buf: &mut [i32],
     ) -> bool {
-        let mut seen = [0u64; 12];
+        if min_nodes <= 1 {
+            return true;
+        }
+        let mut stack_seen = [0u64; 12];
+        let mut heap_seen = if min_nodes > stack_seen.len() {
+            vec![0u64; min_nodes]
+        } else {
+            Vec::new()
+        };
+        let seen: &mut [u64] = if min_nodes > stack_seen.len() {
+            &mut heap_seen
+        } else {
+            &mut stack_seen[..min_nodes]
+        };
         let mut count = 0usize;
         seen[count] = s_id;
         count += 1;
@@ -1291,7 +1379,7 @@ impl RoutingGraph {
         let mut poly: Vec<Point3D> = Vec::with_capacity(32);
 
         let mut candidate_nodes: Vec<u64> = Vec::new();
-        if !self.spatial_grid.is_empty() {
+        if !self.spatial_grid.is_empty() && !self.spatial_grid_dirty {
             let min_cx = (min_lon - 20000).div_euclid(GRID_CELL_SIZE);
             let max_cx = (max_lon + 20000).div_euclid(GRID_CELL_SIZE);
             let min_cy = (min_lat - 20000).div_euclid(GRID_CELL_SIZE);
@@ -1308,7 +1396,12 @@ impl RoutingGraph {
         let node_iter: Box<dyn Iterator<Item = u64> + '_> = if !candidate_nodes.is_empty() {
             Box::new(candidate_nodes.into_iter())
         } else if self.is_resolved {
-            Box::new(self.node_edge_offsets.keys().copied())
+            Box::new(
+                self.node_edge_offsets
+                    .keys()
+                    .copied()
+                    .chain(self.edges.keys().copied()),
+            )
         } else {
             Box::new(self.edges.keys().copied())
         };
@@ -1556,6 +1649,7 @@ impl RoutingGraph {
             );
             self.spatial_grid.entry(cell).or_default().push(s_id);
         }
+        self.spatial_grid_dirty = false;
         self.total_edges = flat_edges.len();
 
         // Resolve bidirectional counterlink indices and target edge slice offsets

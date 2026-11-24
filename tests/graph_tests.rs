@@ -241,3 +241,446 @@ fn test_real_rd5_graph_loading_and_snapping() {
         "Allowed road (costfactor < 9999) should be snapped to"
     );
 }
+
+#[test]
+fn test_self_loop_ensure_node_finalized_no_panic() {
+    use brouter_rs::graph::routing_graph::CellProvider;
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{
+        DecodedGeometryPoint, DecodedLink, DecodedMicroCache, DecodedNode,
+    };
+    use std::sync::Arc;
+
+    struct SelfLoopProvider {
+        cache: DecodedMicroCache,
+    }
+
+    impl CellProvider for SelfLoopProvider {
+        fn divisor_for_degree(&self, _lon_degree: i32, _lat_degree: i32) -> i32 {
+            80
+        }
+
+        fn load_cell(
+            &self,
+            _lon_degree: i32,
+            _lat_degree: i32,
+            lon_idx: i32,
+            lat_idx: i32,
+        ) -> std::io::Result<Option<(DecodedMicroCache, u8)>> {
+            if lon_idx == self.cache.lon_idx && lat_idx == self.cache.lat_idx {
+                Ok(Some((self.cache.clone(), 3)))
+            } else {
+                Ok(None)
+            }
+        }
+    }
+
+    let ilon: i32 = 180_005_000;
+    let ilat: i32 = 141_005_000;
+    let lon_idx = ilon.div_euclid(12_500);
+    let lat_idx = ilat.div_euclid(12_500);
+
+    let cache = DecodedMicroCache {
+        lon_idx,
+        lat_idx,
+        nodes: vec![DecodedNode {
+            ilon,
+            ilat,
+            selev: 100,
+            node_tags: None,
+            turn_restrictions: Vec::new(),
+            links: vec![DecodedLink {
+                target_lon: ilon,
+                target_lat: ilat,
+                is_reverse: false,
+                way_tags: Some(TagValueWrapper {
+                    data: vec![1, 2],
+                    access_type: 2,
+                }),
+                geometry: vec![
+                    DecodedGeometryPoint {
+                        dlon: 500,
+                        dlat: 0,
+                        delev: 0,
+                    },
+                    DecodedGeometryPoint {
+                        dlon: 0,
+                        dlat: 500,
+                        delev: 0,
+                    },
+                ],
+            }],
+        }],
+    };
+
+    let mut graph = RoutingGraph::with_cell_provider(Arc::new(SelfLoopProvider { cache }));
+    let s_id = make_node_id(ilon, ilat);
+    let (start, count) = graph.ensure_node_finalized(s_id);
+    assert_eq!(count, 2);
+
+    let edges = graph.get_edges_by_slice(start, count);
+    assert_eq!(edges.len(), 2);
+    for edge in edges {
+        assert_eq!(edge.target_id, s_id);
+        assert_eq!(edge.target_edges_start, start);
+        assert_eq!(edge.target_edges_count, count);
+        assert_ne!(edge.rev_edge_idx, u32::MAX);
+    }
+    assert_eq!(edges[0].rev_edge_idx, edges[1].edge_idx);
+    assert_eq!(edges[1].rev_edge_idx, edges[0].edge_idx);
+}
+
+#[test]
+fn test_lazy_snap_after_cross_border_finalization() {
+    use brouter_rs::dsl::evaluator::ProfileEvaluator;
+    use brouter_rs::dsl::lookups::LookupData;
+    use brouter_rs::dsl::parser::Profile;
+    use brouter_rs::graph::routing_graph::CellProvider;
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{DecodedLink, DecodedMicroCache, DecodedNode};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    struct TwoRegionProvider {
+        cells: HashMap<(i32, i32), DecodedMicroCache>,
+    }
+
+    impl CellProvider for TwoRegionProvider {
+        fn divisor_for_degree(&self, _lon_degree: i32, _lat_degree: i32) -> i32 {
+            80
+        }
+
+        fn load_cell(
+            &self,
+            _lon_degree: i32,
+            _lat_degree: i32,
+            lon_idx: i32,
+            lat_idx: i32,
+        ) -> std::io::Result<Option<(DecodedMicroCache, u8)>> {
+            Ok(self.cells.get(&(lon_idx, lat_idx)).cloned().map(|c| (c, 3)))
+        }
+    }
+
+    let way_tags = || {
+        Some(TagValueWrapper {
+            data: vec![1],
+            access_type: 2,
+        })
+    };
+    let lat: i32 = 141_005_000;
+    let lat_idx = lat.div_euclid(12_500);
+
+    // Cell C1 around 180_005_000 with a 6-node connected component and a long edge to C5 (180_055_000)
+    let c1_lons = [
+        180_005_000,
+        180_005_500,
+        180_006_000,
+        180_006_500,
+        180_007_000,
+        180_007_500,
+    ];
+    let c5_far_lon = 180_055_000;
+    let mut c1_nodes = Vec::new();
+    for (i, &lon) in c1_lons.iter().enumerate() {
+        let mut links = Vec::new();
+        if i + 1 < c1_lons.len() {
+            links.push(DecodedLink {
+                target_lon: c1_lons[i + 1],
+                target_lat: lat,
+                is_reverse: false,
+                way_tags: way_tags(),
+                geometry: Vec::new(),
+            });
+        }
+        if i == 0 {
+            links.push(DecodedLink {
+                target_lon: c5_far_lon,
+                target_lat: lat,
+                is_reverse: false,
+                way_tags: way_tags(),
+                geometry: Vec::new(),
+            });
+        }
+        c1_nodes.push(DecodedNode {
+            ilon: lon,
+            ilat: lat,
+            selev: 100,
+            node_tags: None,
+            turn_restrictions: Vec::new(),
+            links,
+        });
+    }
+
+    // Cell C5 around 180_055_000 containing target road r0..r5 (at lat + 2000 so separate from c5_far)
+    let c5_road_lat: i32 = 141_007_000;
+    let c5_lons = [
+        180_054_000,
+        180_054_500,
+        180_055_000,
+        180_055_500,
+        180_056_000,
+        180_056_500,
+    ];
+    let mut c5_nodes = vec![DecodedNode {
+        ilon: c5_far_lon,
+        ilat: lat,
+        selev: 100,
+        node_tags: None,
+        turn_restrictions: Vec::new(),
+        links: Vec::new(),
+    }];
+    for i in 0..c5_lons.len() - 1 {
+        c5_nodes.push(DecodedNode {
+            ilon: c5_lons[i],
+            ilat: c5_road_lat,
+            selev: 100,
+            node_tags: None,
+            turn_restrictions: Vec::new(),
+            links: vec![DecodedLink {
+                target_lon: c5_lons[i + 1],
+                target_lat: c5_road_lat,
+                is_reverse: false,
+                way_tags: way_tags(),
+                geometry: Vec::new(),
+            }],
+        });
+    }
+    c5_nodes.push(DecodedNode {
+        ilon: *c5_lons.last().unwrap(),
+        ilat: c5_road_lat,
+        selev: 100,
+        node_tags: None,
+        turn_restrictions: Vec::new(),
+        links: Vec::new(),
+    });
+
+    let c1_idx = (c1_lons[0].div_euclid(12_500), lat_idx);
+    let c5_idx = (c5_far_lon.div_euclid(12_500), lat_idx);
+    let mut cells = HashMap::new();
+    cells.insert(
+        c1_idx,
+        DecodedMicroCache {
+            lon_idx: c1_idx.0,
+            lat_idx: c1_idx.1,
+            nodes: c1_nodes,
+        },
+    );
+    cells.insert(
+        c5_idx,
+        DecodedMicroCache {
+            lon_idx: c5_idx.0,
+            lat_idx: c5_idx.1,
+            nodes: c5_nodes,
+        },
+    );
+
+    let lookups = LookupData::parse("---context:way\n---context:node\n").unwrap();
+    let profile = Profile::parse(
+        "test",
+        "---context:global\n---context:way\nassign costfactor = 1.0\n---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+    let mut evaluator = ProfileEvaluator::new(&profile, &lookups.way, &lookups.node);
+
+    let mut graph = RoutingGraph::with_cell_provider(Arc::new(TwoRegionProvider { cells }));
+
+    // 1. Snap in C1; finalizing node c1_lons[0] loads C5 with track_spatial_grid = false
+    let mwp1 = graph.snap_lazy(
+        brouter_rs::SnapRequest::new("from", ilon_to_lon(180_005_250), ilat_to_lat(lat), 50.0),
+        &mut evaluator,
+        &lookups,
+    );
+    assert!(mwp1.is_some(), "Start snap in C1 should succeed");
+
+    // 2. Snap in C5; spatial_grid must rebuild so unfinalized road in C5 is found
+    let mwp2 = graph.snap_lazy(
+        brouter_rs::SnapRequest::new(
+            "to",
+            ilon_to_lon(180_055_250),
+            ilat_to_lat(c5_road_lat),
+            50.0,
+        ),
+        &mut evaluator,
+        &lookups,
+    );
+    let mwp2 = mwp2.expect("Target snap in C5 must succeed after C5 was loaded during C1 finalize");
+    assert!(
+        mwp2.radius < 5.0,
+        "Expected snap within 5m on C5 road, got {:.2}m",
+        mwp2.radius
+    );
+}
+
+#[test]
+fn test_compact_live_nodes_preserves_shared_geometry() {
+    use brouter_rs::graph::fast_map::FastHashSet;
+    use brouter_rs::graph::routing_graph::CellProvider;
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{
+        DecodedGeometryPoint, DecodedLink, DecodedMicroCache, DecodedNode,
+    };
+    use std::sync::Arc;
+
+    struct TwoNodeProvider {
+        cache: DecodedMicroCache,
+    }
+
+    impl CellProvider for TwoNodeProvider {
+        fn divisor_for_degree(&self, _lon_degree: i32, _lat_degree: i32) -> i32 {
+            80
+        }
+
+        fn load_cell(
+            &self,
+            _lon_degree: i32,
+            _lat_degree: i32,
+            lon_idx: i32,
+            lat_idx: i32,
+        ) -> std::io::Result<Option<(DecodedMicroCache, u8)>> {
+            if lon_idx == self.cache.lon_idx && lat_idx == self.cache.lat_idx {
+                Ok(Some((self.cache.clone(), 3)))
+            } else {
+                Ok(None)
+            }
+        }
+    }
+
+    let ilon1: i32 = 180_001_000;
+    let ilat1: i32 = 141_001_000;
+    let ilon2: i32 = 180_006_000;
+    let ilat2: i32 = 141_001_000;
+    let lon_idx = ilon1.div_euclid(12_500);
+    let lat_idx = ilat1.div_euclid(12_500);
+
+    let geom: Vec<DecodedGeometryPoint> = (1..=5)
+        .map(|i| DecodedGeometryPoint {
+            dlon: 800,
+            dlat: if i % 2 == 0 { 100 } else { -100 },
+            delev: 0,
+        })
+        .collect();
+
+    let cache = DecodedMicroCache {
+        lon_idx,
+        lat_idx,
+        nodes: vec![
+            DecodedNode {
+                ilon: ilon1,
+                ilat: ilat1,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: vec![DecodedLink {
+                    target_lon: ilon2,
+                    target_lat: ilat2,
+                    is_reverse: false,
+                    way_tags: Some(TagValueWrapper {
+                        data: vec![1],
+                        access_type: 2,
+                    }),
+                    geometry: geom,
+                }],
+            },
+            DecodedNode {
+                ilon: ilon2,
+                ilat: ilat2,
+                selev: 100,
+                node_tags: None,
+                turn_restrictions: Vec::new(),
+                links: Vec::new(),
+            },
+        ],
+    };
+
+    let mut graph = RoutingGraph::with_cell_provider(Arc::new(TwoNodeProvider { cache }));
+    let id1 = make_node_id(ilon1, ilat1);
+    let id2 = make_node_id(ilon2, ilat2);
+    graph.ensure_node_finalized(id1);
+    graph.ensure_node_finalized(id2);
+    assert_eq!(graph.geometry_pool.len(), 5);
+
+    let mut keep_nodes = FastHashSet::default();
+    keep_nodes.insert(id1);
+    keep_nodes.insert(id2);
+    let mut frontier_cells = FastHashSet::default();
+    frontier_cells.insert((lon_idx, lat_idx));
+
+    graph.compact_live_nodes(&mut keep_nodes, &frontier_cells);
+    assert_eq!(
+        graph.geometry_pool.len(),
+        5,
+        "Bidirectional edges must continue sharing geometry_pool slice across compaction"
+    );
+}
+
+#[test]
+fn test_edge_count_mixed_and_is_connected_above_12() {
+    use brouter_rs::dsl::evaluator::ProfileEvaluator;
+    use brouter_rs::dsl::lookups::LookupData;
+    use brouter_rs::dsl::parser::Profile;
+    use brouter_rs::rd5::codec::tag_coder::TagValueWrapper;
+    use brouter_rs::rd5::micro_cache::{DecodedLink, DecodedMicroCache, DecodedNode};
+
+    let lookups = LookupData::parse("---context:way\n---context:node\n").unwrap();
+    let profile = Profile::parse(
+        "connected_test",
+        "---context:global\n---context:way\nassign costfactor = 1.0\n---context:node\n",
+        &lookups,
+    )
+    .unwrap();
+    let mut evaluator = ProfileEvaluator::new(&profile, &lookups.way, &lookups.node);
+    let mut way_buf = vec![0i32; lookups.way.names.len()];
+
+    let way_tags = || {
+        Some(TagValueWrapper {
+            data: vec![1],
+            access_type: 2,
+        })
+    };
+
+    let ilat: i32 = 141_000_000;
+    let lons: Vec<i32> = (0..16).map(|i| 180_000_000 + i * 500).collect();
+    let mut nodes = Vec::with_capacity(lons.len());
+    for (i, &lon) in lons.iter().enumerate() {
+        let mut links = Vec::new();
+        if i + 1 < lons.len() {
+            links.push(DecodedLink {
+                target_lon: lons[i + 1],
+                target_lat: ilat,
+                is_reverse: false,
+                way_tags: way_tags(),
+                geometry: Vec::new(),
+            });
+        }
+        nodes.push(DecodedNode {
+            ilon: lon,
+            ilat,
+            selev: 100,
+            node_tags: None,
+            turn_restrictions: Vec::new(),
+            links,
+        });
+    }
+
+    let mut graph = RoutingGraph::new();
+    graph.add_micro_cache(DecodedMicroCache {
+        lon_idx: 180_000_000i32.div_euclid(12_500),
+        lat_idx: ilat.div_euclid(12_500),
+        nodes,
+    });
+
+    // 15 forward + 15 reverse = 30 edges initially in `graph.edges`
+    assert_eq!(graph.edge_count(), 30);
+
+    // Finalize only the first node (moves its 1 outgoing edge to `flat_edges`, leaving 29 in `edges`)
+    let n0 = make_node_id(lons[0], ilat);
+    let n1 = make_node_id(lons[1], ilat);
+    graph.ensure_node_finalized(n0);
+    assert_eq!(graph.edge_count(), 30);
+
+    // Test min_nodes <= 1 and min_nodes > 12 (no panic, exact connectivity)
+    assert!(graph.is_connected_passable_edge(n0, n1, 1, &mut evaluator, &lookups, &mut way_buf));
+    assert!(graph.is_connected_passable_edge(n0, n1, 15, &mut evaluator, &lookups, &mut way_buf));
+    assert!(!graph.is_connected_passable_edge(n0, n1, 20, &mut evaluator, &lookups, &mut way_buf));
+}

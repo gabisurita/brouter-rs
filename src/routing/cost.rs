@@ -229,17 +229,30 @@ impl CarKinematicModel {
     /// Computes breaking speed (m/s) for balance power `pw` and effective speed limit `vl`.
     #[inline]
     pub fn breaking_speed(&self, vl: f64) -> f64 {
+        if !vl.is_finite() || vl <= 0.0 {
+            return 0.0;
+        }
         let mut v = vl * 0.8;
         let pw2 = self.pw + self.p_standby;
         let e = self.recup_efficiency;
         let x0 = pw2 / vl + self.f_air * e * vl * vl + (1.0 - e) * self.f_roll;
         for _ in 0..5 {
+            if v.abs() < 1e-9 {
+                break;
+            }
             let v2 = v * v;
             let x = pw2 / v + self.f_air * e * v2 - x0;
             let dx = 2.0 * e * self.f_air * v - pw2 / v2;
+            if !dx.is_finite() || dx.abs() < 1e-12 {
+                break;
+            }
             v -= x / dx;
         }
-        v
+        if v.is_finite() {
+            v.clamp(0.0, vl)
+        } else {
+            0.0
+        }
     }
 
     /// Clamps kinetic energy `ekin` to the kinetic energy at `speed` (m/s).
@@ -265,10 +278,20 @@ impl CarKinematicModel {
         delta_h: f64,
         f_air: f64,
     ) -> (f64, f32, f32) {
+        if !dist.is_finite() || dist <= 0.0 {
+            return (0.0, 0.0, 0.0);
+        }
+        if !self.total_weight.is_finite()
+            || self.total_weight <= 0.0
+            || !self.cost0.is_finite()
+            || self.cost0 <= 0.0
+        {
+            return (-1.0, 0.0, 0.0);
+        }
         let fh = delta_h * self.total_weight * GRAVITY / dist;
         let effective_speed_limit = self.effective_speed_limit(way_cost);
         let emax = 0.5 * self.total_weight * effective_speed_limit * effective_speed_limit;
-        if emax <= 0.0 {
+        if !emax.is_finite() || emax <= 0.0 {
             return (-1.0, 0.0, 0.0);
         }
         let vb = self.breaking_speed(effective_speed_limit);
@@ -277,9 +300,12 @@ impl CarKinematicModel {
         let mut elapsed_time = 0.0;
         let mut dissipated_energy = 0.0;
 
-        let mut v = (2.0 * *ekin / self.total_weight).sqrt();
+        let mut v = (2.0 * (*ekin).max(0.0) / self.total_weight).sqrt();
         let mut d = dist;
-        while d > 0.0 {
+        const MAX_EVOLVE_ITERS: usize = 10_000;
+        let mut iters = 0usize;
+        while d > 0.0 && iters < MAX_EVOLVE_ITERS {
+            iters += 1;
             let slow = *ekin < elow;
             let fast = *ekin >= emax;
             let etarget = if slow { elow } else { emax };
@@ -298,29 +324,38 @@ impl CarKinematicModel {
             if fast {
                 x = d;
                 delta_ekin = x * f;
-                time_step = x / v;
+                time_step = x / v.max(effective_speed_limit).max(1e-6);
                 *ekin = etarget;
+            } else if !f.is_finite() || f <= 1e-9 {
+                x = d;
+                delta_ekin = 0.0;
+                time_step = x / v.max(effective_speed_limit).max(1e-6);
             } else {
-                let de = etarget - *ekin;
+                let de = (etarget - *ekin).max(0.0);
                 let b = 2.0 * f_air / self.total_weight;
                 let x0 = de / f;
                 let x0b = x0 * b;
                 let x_est = x0 * (1.0 - x0b * (0.5 + x0b * (0.333333333 - x0b * 0.25)));
                 let maxstep = d.min(50.0);
-                if x_est >= maxstep {
+                if !x_est.is_finite() || x_est <= 0.0 || x_est >= maxstep {
                     x = maxstep;
                     let xb = x * b;
                     delta_ekin =
                         x * f * (1.0 + xb * (0.5 + xb * (0.166666667 + xb * 0.0416666667)));
-                    *ekin += delta_ekin;
+                    *ekin = (*ekin + delta_ekin).min(etarget);
                 } else {
                     x = x_est;
                     delta_ekin = de;
                     *ekin = etarget;
                 }
-                let v2 = (2.0 * *ekin / self.total_weight).sqrt();
+                let v2 = (2.0 * (*ekin).max(0.0) / self.total_weight).sqrt();
                 let a = f / self.total_weight;
-                time_step = (v2 - v) / a;
+                let raw_dt = (v2 - v) / a;
+                time_step = if raw_dt.is_finite() && (raw_dt > 0.0 || x <= 0.0) {
+                    raw_dt
+                } else {
+                    x / v.max(effective_speed_limit).max(1e-6)
+                };
                 v = v2;
             }
             d -= x;
@@ -342,5 +377,66 @@ impl CarKinematicModel {
 
         let dist_cost = (self.pw * elapsed_time + dissipated_energy) / self.cost0;
         (dist_cost, dt, de)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_evolve_distance_handles_zero_negative_nan_and_degenerate_force() {
+        let lookups =
+            crate::dsl::lookups::LookupData::parse("---context:way\n---context:node\n").unwrap();
+        let profile = Profile::parse(
+            "kinematic_edge",
+            "---model:btools.router.KinematicModel\n\
+             ---context:global\n\
+             assign vmax = 80\n\
+             ---context:way\n\
+             assign costfactor = 1\n\
+             assign maxspeed = 80\n\
+             assign minspeed = 0\n\
+             ---context:node\n",
+            &lookups,
+        )
+        .unwrap();
+        let model = CarKinematicModel::from_profile(&profile).unwrap();
+        let way_cost = WayCostResult {
+            costfactor: 1.0,
+            maxspeed: 80.0,
+            minspeed: 0.0,
+            ..Default::default()
+        };
+
+        assert_eq!(model.breaking_speed(0.0), 0.0);
+        assert_eq!(model.breaking_speed(-5.0), 0.0);
+        assert_eq!(model.breaking_speed(f64::NAN), 0.0);
+
+        for bad_dist in [0.0, -5.0, f64::NAN] {
+            let mut ekin = 100.0;
+            let mut t = 0.0;
+            let mut e = 0.0;
+            let (dc, dt, de) = model.evolve_distance(
+                &mut ekin,
+                &mut t,
+                &mut e,
+                &way_cost,
+                bad_dist,
+                0.0,
+                model.f_air,
+            );
+            assert_eq!((dc, dt, de), (0.0, 0.0, 0.0));
+        }
+
+        // Degenerate negative f (zero roll resistance + strong negative f_recup via negative f_roll)
+        let mut degenerate = model.clone();
+        degenerate.f_roll = -10_000.0;
+        let mut ekin = 0.0;
+        let mut t = 0.0;
+        let mut e = 0.0;
+        let (dc, dt, _de) =
+            degenerate.evolve_distance(&mut ekin, &mut t, &mut e, &way_cost, 100.0, 20.0, 0.0);
+        assert!(dc.is_finite() && dt.is_finite() && dt > 0.0);
     }
 }

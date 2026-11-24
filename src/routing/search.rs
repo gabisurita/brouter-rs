@@ -391,8 +391,10 @@ impl AStarRouter {
             .turn_instruction_mode
             .unwrap_or_else(|| profile.get_global_var("turnInstructionMode", 0.0) as i32);
         let kinematic_cfg = KinematicConfig::from_profile(profile);
+        let correct_via_points = profile.get_global_var("correctMisplacedViaPoints", 0.0) != 0.0;
+        let via_corr_dist = profile.get_global_var("correctMisplacedViaPointsDistance", 0.0) as f64;
 
-        let mut legs = Vec::with_capacity(waypoints.len() - 1);
+        let mut legs: Vec<RawLeg> = Vec::with_capacity(waypoints.len() - 1);
         for i in 0..waypoints.len() - 1 {
             let is_direct = options.direct_legs.get(i).copied().unwrap_or(false);
             let leg = if is_direct {
@@ -403,7 +405,7 @@ impl AStarRouter {
                 } else {
                     None
                 };
-                self.route_leg_ref(
+                self.route_leg_raw(
                     graph,
                     lookups,
                     profile,
@@ -418,10 +420,164 @@ impl AStarRouter {
             };
             legs.push(leg);
         }
-        let mut merged = RouteResult::merge(legs)?;
-        merged.turn_instruction_mode = timode;
-        merged.recalc_track(graph, &kinematic_cfg);
-        Ok(merged)
+
+        let mut iter = legs.into_iter();
+        let mut merged = iter
+            .next()
+            .ok_or_else(|| "Cannot merge empty route legs".to_string())?;
+        let mut beeline_hints = Vec::new();
+        if merged.is_beeline && timode > 0 {
+            if let Some(bh) = make_beeline_hint(&merged.result, 0) {
+                beeline_hints.push(bh);
+            }
+        }
+
+        for mut next in iter {
+            if correct_via_points && !merged.is_beeline && !next.is_beeline {
+                if let Some(trim_count) = merged
+                    .result
+                    .snap_path_connection_trim(&mut next.result, via_corr_dist)
+                {
+                    let kept_len = merged.result.points.len();
+                    merged.raw_selevs.truncate(kept_len);
+                    merged.detours_by_track_idx.retain(|&idx, _| idx < kept_len);
+                    if next.raw_selevs.len() >= trim_count {
+                        next.raw_selevs.drain(0..trim_count);
+                    }
+                    let mut shifted = FastHashMap::default();
+                    for (idx, v) in next.detours_by_track_idx.drain() {
+                        if idx >= trim_count {
+                            shifted.insert(idx - trim_count, v);
+                        }
+                    }
+                    next.detours_by_track_idx = shifted;
+                }
+            }
+
+            let our_size = merged.result.points.len();
+            let skip_count = match (merged.result.points.last(), next.result.points.first()) {
+                (Some(last), Some(first))
+                    if (last.lon - first.lon).abs() < 1e-5
+                        && (last.lat - first.lat).abs() < 1e-5 =>
+                {
+                    1usize
+                }
+                _ => 0usize,
+            };
+            let idx_offset = our_size.saturating_sub(skip_count);
+
+            if next.is_beeline && timode > 0 {
+                if let Some(bh) = make_beeline_hint(&next.result, idx_offset) {
+                    beeline_hints.push(bh);
+                }
+            }
+            if !merged.is_beeline
+                && !next.is_beeline
+                && skip_count == 1
+                && our_size >= 2
+                && next.result.points.len() >= 2
+            {
+                let p0 = Point2D::new(
+                    spatial::lon_to_ilon(merged.result.points[our_size - 2].lon),
+                    spatial::lat_to_ilat(merged.result.points[our_size - 2].lat),
+                );
+                let p1 = Point2D::new(
+                    spatial::lon_to_ilon(merged.result.points[our_size - 1].lon),
+                    spatial::lat_to_ilat(merged.result.points[our_size - 1].lat),
+                );
+                let p2 = Point2D::new(
+                    spatial::lon_to_ilon(next.result.points[1].lon),
+                    spatial::lat_to_ilat(next.result.points[1].lat),
+                );
+                let (ang, _) = calc_angle(p0, p1, p2);
+                if let Some(Some(ref mut next_first_msg)) = next.result.messages.get_mut(1) {
+                    next_first_msg.turnangle = ang as f32;
+                }
+                let p1_node_id = p1.node_id();
+                if timode > 0
+                    && !merged.detours_by_track_idx.contains_key(&idx_offset)
+                    && !next.detours_by_track_idx.contains_key(&0)
+                    && graph.nodes.contains_key(&p1_node_id)
+                {
+                    let costs = graph.sync_profile_costs(profile, lookups);
+                    let from_node = &graph.nodes[&p1_node_id];
+                    let mut junction_detours = Vec::new();
+                    let mut tmp_poly = Vec::new();
+                    for e in graph.get_edges(p1_node_id) {
+                        if e.target_id == p0.node_id() || e.target_id == p2.node_id() {
+                            continue;
+                        }
+                        let p_cand = if e.is_geometry_empty() {
+                            Point2D::new(e.target_lon, e.target_lat)
+                        } else {
+                            e.fill_polyline(
+                                graph,
+                                &mut tmp_poly,
+                                from_node.ilon,
+                                from_node.ilat,
+                                from_node.selev,
+                                e.target_selev,
+                            );
+                            if tmp_poly.len() >= 2 {
+                                tmp_poly[1].to_2d()
+                            } else {
+                                Point2D::new(e.target_lon, e.target_lat)
+                            }
+                        };
+                        if p_cand == p0 || p_cand == p2 {
+                            continue;
+                        }
+                        if let Some(wc) = get_way_cost(&costs.way_costs, e.desc_id, e.is_reverse) {
+                            if wc.priorityclassifier > 0
+                                || wc.costfactor < 9999.0
+                                || (wc.classifiermask & 1) != 0
+                            {
+                                let (bad_ang, _) = calc_angle(p0, p1, p_cand);
+                                if (bad_ang - ang).abs() < 0.5
+                                    && distance(p1, p2) <= distance(p1, p_cand) + 1.0
+                                {
+                                    continue;
+                                }
+                                let alt_dist = distance(p1, p_cand).round().max(1.0) as i32;
+                                junction_detours.push(WayMessage {
+                                    linkdist: alt_dist,
+                                    costfactor: wc.costfactor,
+                                    priorityclassifier: wc.priorityclassifier,
+                                    classifiermask: wc.classifiermask,
+                                    turnangle: bad_ang as f32,
+                                    ..Default::default()
+                                });
+                            }
+                        }
+                    }
+                    if !junction_detours.is_empty() {
+                        merged
+                            .detours_by_track_idx
+                            .insert(idx_offset, junction_detours);
+                    }
+                }
+            }
+
+            let next_is_beeline = next.is_beeline;
+            merged.result.append(next.result);
+            merged
+                .raw_selevs
+                .extend(next.raw_selevs.into_iter().skip(skip_count));
+            for (idx, v) in next.detours_by_track_idx {
+                merged.detours_by_track_idx.insert(idx + idx_offset, v);
+            }
+            merged.is_beeline = next_is_beeline;
+        }
+
+        Ok(finalize_raw_leg(
+            merged,
+            graph,
+            profile,
+            timode,
+            beeline_hints,
+            true,
+            Some(&kinematic_cfg),
+        ))
     }
 
     fn find_beeline_leg(
@@ -430,7 +586,7 @@ impl AStarRouter {
         target: (f64, f64),
         kinematic_cfg: &KinematicConfig,
         timode: i32,
-    ) -> RouteResult {
+    ) -> RawLeg {
         let start_pt = Point2D::new(spatial::lon_to_ilon(start.0), spatial::lat_to_ilat(start.1));
         let target_pt = Point2D::new(
             spatial::lon_to_ilon(target.0),
@@ -459,49 +615,41 @@ impl AStarRouter {
             ..Default::default()
         };
 
-        let vh = VoiceHint {
-            ilon: start_pt.lon,
-            ilat: start_pt.lat,
-            selev: 0,
-            cmd: VoiceHint::BL,
-            old_way: msg.clone(),
-            good_way: msg.clone(),
-            distance_to_next: dist_m,
-            index_in_track: 0,
-            angle: 0.0,
-            ..Default::default()
-        };
-
-        RouteResult {
-            total_distance_m: dist_m,
-            total_time_s: time_s,
-            total_energy_j: energy_j,
-            total_cost: cost,
-            filtered_ascend_m: 0.0,
-            plain_ascend_m: 0.0,
-            points: vec![
-                RoutePoint {
-                    lon: start.0,
-                    lat: start.1,
-                    elevation_m: 0.0,
-                    distance_from_start_m: 0.0,
-                    time_from_start_s: 0.0,
-                    energy_j: 0.0,
-                    cost: 0,
-                },
-                RoutePoint {
-                    lon: target.0,
-                    lat: target.1,
-                    elevation_m: 0.0,
-                    distance_from_start_m: dist_m,
-                    time_from_start_s: time_s,
-                    energy_j,
-                    cost,
-                },
-            ],
-            messages: vec![None, Some(msg)],
-            voice_hints: if timode > 0 { vec![vh] } else { Vec::new() },
-            turn_instruction_mode: timode,
+        RawLeg {
+            result: RouteResult {
+                total_distance_m: dist_m,
+                total_time_s: time_s,
+                total_energy_j: energy_j,
+                total_cost: cost,
+                filtered_ascend_m: 0.0,
+                plain_ascend_m: 0.0,
+                points: vec![
+                    RoutePoint {
+                        lon: start.0,
+                        lat: start.1,
+                        elevation_m: 0.0,
+                        distance_from_start_m: 0.0,
+                        time_from_start_s: 0.0,
+                        energy_j: 0.0,
+                        cost: 0,
+                    },
+                    RoutePoint {
+                        lon: target.0,
+                        lat: target.1,
+                        elevation_m: 0.0,
+                        distance_from_start_m: dist_m,
+                        time_from_start_s: time_s,
+                        energy_j,
+                        cost,
+                    },
+                ],
+                messages: vec![None, Some(msg)],
+                voice_hints: Vec::new(),
+                turn_instruction_mode: timode,
+            },
+            raw_selevs: vec![0, 0],
+            detours_by_track_idx: FastHashMap::default(),
+            is_beeline: true,
         }
     }
 
@@ -519,6 +667,43 @@ impl AStarRouter {
         force_start_direction: bool,
         turn_instruction_mode: i32,
     ) -> Result<RouteResult, String> {
+        let raw = self.route_leg_raw(
+            graph,
+            lookups,
+            profile,
+            start,
+            target,
+            alternative_idx,
+            nogos,
+            start_direction,
+            force_start_direction,
+            turn_instruction_mode,
+        )?;
+        Ok(finalize_raw_leg(
+            raw,
+            graph,
+            profile,
+            turn_instruction_mode,
+            Vec::new(),
+            false,
+            None,
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn route_leg_raw(
+        &self,
+        graph: &mut GraphRef<'_>,
+        lookups: &LookupData,
+        profile: &Profile,
+        start: (f64, f64),
+        target: (f64, f64),
+        alternative_idx: usize,
+        nogos: &[NogoArea],
+        start_direction: Option<f64>,
+        force_start_direction: bool,
+        turn_instruction_mode: i32,
+    ) -> Result<RawLeg, String> {
         let (start_lon, start_lat) = start;
         let (target_lon, target_lat) = target;
         let mut evaluator = ProfileEvaluator::new(profile, &lookups.way, &lookups.node);
@@ -672,7 +857,7 @@ impl AStarRouter {
                     cost_guide.record_edge(step.from_node_id, step.node_id, step.cost);
                 }
 
-                let cost_cutting_threshold = Some(pass0_track.total_cost + 5000);
+                let cost_cutting_threshold = Some(pass0_track.total_cost.saturating_add(5000));
 
                 let pass1_params = SearchPassParams {
                     start_mwp: &start_mwp,
@@ -736,11 +921,11 @@ impl AStarRouter {
             let costs = graph.sync_profile_costs(profile, lookups);
 
             // 3. Run Pass 2 (re-tracking): walk the winning path, decode geometry, evaluate kinematics
-            let route = self.retrack_path(
+            let raw_leg = self.retrack_path(
                 graph,
                 lookups,
                 profile,
-                &costs.way_costs,
+                &costs,
                 &winning_track.steps,
                 winning_track.total_cost,
                 &kinematic_cfg,
@@ -757,7 +942,7 @@ impl AStarRouter {
                         ref_nodes.insert(step.node_id);
                     }
                 }
-                for pt in &route.points {
+                for pt in &raw_leg.result.points {
                     let id =
                         Point2D::new(spatial::lon_to_ilon(pt.lon), spatial::lat_to_ilat(pt.lat))
                             .node_id();
@@ -766,7 +951,7 @@ impl AStarRouter {
             }
 
             if alt == alternative_idx {
-                target_result = Some(route);
+                target_result = Some(raw_leg);
                 break;
             }
         }
@@ -799,17 +984,17 @@ impl AStarRouter {
         graph: &RoutingGraph,
         lookups: &LookupData,
         profile: &Profile,
-        cached_way_costs: &[crate::dsl::evaluator::WayCostResult],
+        costs: &crate::graph::routing_graph::ProfileCostTable,
         steps: &[TrackStep],
         final_cost: u32,
         kinematic_cfg: &KinematicConfig,
         car_kinematic: Option<&CarKinematicModel>,
         turn_instruction_mode: i32,
-    ) -> Result<RouteResult, String> {
+    ) -> Result<RawLeg, String> {
+        let cached_way_costs = &costs.way_costs;
         let mut route_points: Vec<RoutePoint> = Vec::new();
         let mut route_messages: Vec<Option<WayMessage>> = Vec::new();
         let mut detours_by_track_idx: FastHashMap<usize, Vec<WayMessage>> = FastHashMap::default();
-        let mut pts_2d: Vec<Point2D> = Vec::new();
         let mut raw_selevs: Vec<i16> = Vec::new();
         let mut cum_dist = 0.0;
         let mut cum_time = 0.0f32;
@@ -819,81 +1004,118 @@ impl AStarRouter {
         let mut prev_pt_pos: Option<Point2D> = None;
         let mut last_pt_pos: Option<Point2D> = None;
 
+        let elev_cfg = ElevationConfig::from_profile(profile);
+        let mut elev_state = PathState::default();
         let mut detail_state = PathState::default();
+        let mut last_classifier = 0u8;
         let mut last_prio = 0i32;
         let mut pre_paths_buf: Vec<KinematicPrePath> = Vec::new();
         let mut tmp_poly: Vec<Point3D> = Vec::new();
         let mut way_buf = vec![0i32; lookups.way.names.len()];
         let mut node_buf = vec![0i32; lookups.node.names.len()];
-        let mut retrack_eval =
-            car_kinematic.map(|_| ProfileEvaluator::new(profile, &lookups.way, &lookups.node));
+        let node_foreign_var_indices = profile.node_block.foreign_var_indices();
+        let node_foreign_var_count = node_foreign_var_indices.len();
+        let node_foreign_var_0 = node_foreign_var_indices.into_iter().next();
+        let mut retrack_eval = if car_kinematic.is_some() || node_foreign_var_count > 0 {
+            Some(ProfileEvaluator::new(profile, &lookups.way, &lookups.node))
+        } else {
+            None
+        };
 
         for (s_i, step) in steps.iter().enumerate() {
             let mut step_way_cost = None;
             let mut step_edge_idx = u32::MAX;
             let mut endpoint_origin_ele2: Option<i16> = None;
             let mut way_kv_str = String::new();
-            {
-                let edges = graph.get_edges(step.from_node_id);
-                let edge = if (step.edge_idx as usize) < edges.len()
-                    && (step.node_id == 0
-                        || edges[step.edge_idx as usize].target_id == step.node_id)
-                {
-                    Some(&edges[step.edge_idx as usize])
-                } else {
-                    edges.iter().find(|e| {
+            let edges = graph.get_edges(step.from_node_id);
+            let local_match = ((step.edge_idx as usize) < edges.len()
+                && (step.node_id == 0 || edges[step.edge_idx as usize].target_id == step.node_id))
+                .then(|| &edges[step.edge_idx as usize]);
+            let step_edge = if step.global_edge_idx != u32::MAX {
+                edges
+                    .iter()
+                    .find(|e| {
                         e.edge_idx == step.global_edge_idx
-                            || (step.node_id != 0 && e.target_id == step.node_id)
+                            && (step.node_id == 0 || e.target_id == step.node_id)
                     })
-                };
+                    .or(local_match)
+                    .or_else(|| {
+                        edges
+                            .iter()
+                            .find(|e| step.node_id != 0 && e.target_id == step.node_id)
+                    })
+            } else {
+                local_match.or_else(|| {
+                    edges
+                        .iter()
+                        .find(|e| step.node_id != 0 && e.target_id == step.node_id)
+                })
+            };
 
-                if let Some(e) = edge {
-                    step_edge_idx = e.edge_idx;
-                    step_way_cost = get_way_cost(cached_way_costs, e.desc_id, e.is_reverse);
-                    if s_i == steps.len() - 1 {
-                        if let (Some(sliced), Some(from_node)) = (
-                            step.sliced_points.as_ref(),
-                            graph.nodes.get(&step.from_node_id),
-                        ) {
-                            if let Some(last_pt) = sliced.last() {
-                                let t_elev = if e.target_selev != i16::MIN {
-                                    e.target_selev
-                                } else {
-                                    graph
-                                        .nodes
-                                        .get(&e.target_id)
-                                        .map(|n| n.selev)
-                                        .unwrap_or(i16::MIN)
-                                };
-                                e.fill_polyline(
-                                    graph,
-                                    &mut tmp_poly,
-                                    from_node.ilon,
-                                    from_node.ilat,
-                                    from_node.selev,
-                                    t_elev,
+            let mut step_has_way_tags = false;
+            if let Some(e) = step_edge {
+                step_edge_idx = e.edge_idx;
+                step_way_cost = get_way_cost(cached_way_costs, e.desc_id, e.is_reverse);
+                if s_i == steps.len() - 1 {
+                    if let (Some(sliced), Some(from_node)) = (
+                        step.sliced_points.as_ref(),
+                        graph.nodes.get(&step.from_node_id),
+                    ) {
+                        if let Some(last_pt) = sliced.last() {
+                            let t_elev = if e.target_selev != i16::MIN {
+                                e.target_selev
+                            } else {
+                                graph
+                                    .nodes
+                                    .get(&e.target_id)
+                                    .map(|n| n.selev)
+                                    .unwrap_or(i16::MIN)
+                            };
+                            e.fill_polyline(
+                                graph,
+                                &mut tmp_poly,
+                                from_node.ilon,
+                                from_node.ilat,
+                                from_node.selev,
+                                t_elev,
+                            );
+                            if tmp_poly.len() >= 2 {
+                                let (best_idx, _, _) = super::slicing::find_crosspoint_projection(
+                                    &tmp_poly,
+                                    last_pt.to_2d(),
                                 );
-                                if tmp_poly.len() >= 2 {
-                                    let (best_idx, _, _) =
-                                        super::slicing::find_crosspoint_projection(
-                                            &tmp_poly,
-                                            last_pt.to_2d(),
-                                        );
-                                    if best_idx + 1 < tmp_poly.len() {
-                                        endpoint_origin_ele2 = Some(tmp_poly[best_idx + 1].elev);
-                                    }
+                                if best_idx + 1 < tmp_poly.len() {
+                                    endpoint_origin_ele2 = Some(tmp_poly[best_idx + 1].elev);
                                 }
                             }
                         }
                     }
-                    if let Some(desc_bytes) = e.description(graph) {
-                        lookups
-                            .way
-                            .decode_into(&mut way_buf, e.is_reverse, desc_bytes);
-                        way_kv_str = lookups.way.format_key_values(&way_buf);
-                    }
+                }
+                if let Some(desc_bytes) = e.description(graph) {
+                    lookups
+                        .way
+                        .decode_into(&mut way_buf, e.is_reverse, desc_bytes);
+                    way_kv_str = lookups.way.format_key_values(&way_buf);
+                    step_has_way_tags = true;
                 }
             }
+
+            let step_init_cost = if let Some(wc) = step_way_cost {
+                let new_cls = wc.initialclassifier;
+                let ic = if new_cls != 0 && last_classifier != 0 && new_cls != last_classifier {
+                    if wc.initialcost < 1_000_000.0 {
+                        wc.initialcost as i32
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                };
+                last_classifier = new_cls;
+                ic
+            } else {
+                0
+            };
 
             let poly = if let Some(ref sliced) = step.sliced_points {
                 sliced.clone()
@@ -910,28 +1132,18 @@ impl AStarRouter {
                         step.node_id
                     )
                 })?;
-                let edges = graph.get_edges(step.from_node_id);
                 if edges.is_empty() {
                     return Err(format!(
                         "Outgoing edges for node {} not found during retrack",
                         step.from_node_id
                     ));
                 }
-                let edge = if (step.edge_idx as usize) < edges.len()
-                    && edges[step.edge_idx as usize].target_id == step.node_id
-                {
-                    &edges[step.edge_idx as usize]
-                } else {
-                    edges
-                        .iter()
-                        .find(|e| e.target_id == step.node_id)
-                        .ok_or_else(|| {
-                            format!(
-                                "Edge from {} to {} not found during retrack",
-                                step.from_node_id, step.node_id
-                            )
-                        })?
-                };
+                let edge = step_edge.ok_or_else(|| {
+                    format!(
+                        "Edge from {} to {} not found during retrack",
+                        step.from_node_id, step.node_id
+                    )
+                })?;
                 edge.polyline(
                     graph,
                     from_node.ilon,
@@ -1007,31 +1219,62 @@ impl AStarRouter {
                 }
             }
 
-            let target_node_kv = if step.node_id != 0 {
+            let node_access = if car_kinematic.is_some() {
+                false
+            } else {
+                step_way_cost.is_some_and(|wc| wc.nodeaccessgranted)
+            };
+            let (target_node_kv, step_node_res) = if step.node_id != 0 {
                 if let Some(target_node) = graph.nodes.get(&step.node_id) {
                     if let Some(node_desc) = graph
                         .node_descriptions
                         .get(target_node.node_desc_id as usize)
                     {
-                        let node_access = if car_kinematic.is_some() {
-                            false
-                        } else {
-                            step_way_cost.is_some_and(|wc| wc.nodeaccessgranted)
-                        };
                         lookups
                             .node
                             .decode_into(&mut node_buf, node_access, node_desc);
-                        lookups.node.format_key_values(&node_buf)
+                        let kv = lookups.node.format_key_values(&node_buf);
+                        let nr = if node_foreign_var_count == 0
+                            || (node_foreign_var_count == 1
+                                && step_way_cost.is_some_and(|wc| {
+                                    wc.foreign_var_0 == 0.0 || wc.foreign_var_0 == 1.0
+                                })) {
+                            get_node_cost(
+                                &costs.node_costs,
+                                target_node.node_desc_id,
+                                node_access,
+                                step_way_cost.is_some_and(|wc| wc.foreign_var_0 != 0.0),
+                            )
+                            .copied()
+                        } else if let Some(ref mut eval) = retrack_eval {
+                            if node_foreign_var_count == 1 {
+                                if let (Some(fv_idx), Some(wc)) =
+                                    (node_foreign_var_0, step_way_cost)
+                                {
+                                    eval.way_vars[fv_idx] = wc.foreign_var_0;
+                                }
+                            } else if step_has_way_tags {
+                                eval.evaluate_way(&way_buf);
+                            }
+                            Some(eval.evaluate_node(&node_buf))
+                        } else {
+                            None
+                        };
+                        (kv, nr)
                     } else {
-                        String::new()
+                        (String::new(), None)
                     }
                 } else {
-                    String::new()
+                    (String::new(), None)
                 }
             } else {
-                String::new()
+                (String::new(), None)
             };
+            let step_node_cost = step_node_res
+                .filter(|nc| nc.initialcost > 0.0 && nc.initialcost < 1_000_000.0)
+                .map_or(0, |nc| nc.initialcost as i32);
 
+            let mut pending_init_cost = step_init_cost;
             let mut nsection = 0usize;
             for (p_i, pt) in poly.iter().enumerate() {
                 if p_i == 0 && s_i > 0 {
@@ -1047,6 +1290,7 @@ impl AStarRouter {
                 let mut seg_dist_int = 0i32;
                 let mut turn_angle_deg = 0.0f32;
                 let mut turn_cost_int = 0i32;
+                let mut elev_cost_int = 0i32;
 
                 if let Some(last_pos) = last_pt_pos {
                     let seg_d = distance(last_pos, pt.to_2d()).round().max(1.0);
@@ -1072,8 +1316,28 @@ impl AStarRouter {
                     turn_angle_deg = angle as f32;
                     if let Some(wc) = step_way_cost {
                         if !is_startpoint && wc.turncost > 0.0 {
-                            turn_cost_int =
-                                ((1.0 - cos_angle) * 0.5 * (wc.turncost as f64) + 0.2) as i32;
+                            turn_cost_int = ((1.0 - cos_angle) * (wc.turncost as f64) + 0.2) as i32;
+                        }
+                        if car_kinematic.is_none() {
+                            let delta_h_micros = if carried_selev == i16::MIN || ele2 == i16::MIN {
+                                0
+                            } else {
+                                (ele2 - carried_selev) as i32 * 250_000
+                            };
+                            let sec = StdPathCalculator::process_section(
+                                &mut elev_state,
+                                wc,
+                                &elev_cfg,
+                                kinematic_cfg,
+                                &SectionInput {
+                                    dist: seg_d,
+                                    delta_h_micros,
+                                    cos_angle,
+                                    crossing_penalty: 0,
+                                    is_detail: true,
+                                },
+                            );
+                            elev_cost_int = sec.elevation_cost as i32;
                         }
                     }
 
@@ -1123,7 +1387,6 @@ impl AStarRouter {
                 let is_first_point = last_pt_pos.is_none();
                 last_pt_pos = Some(pt.to_2d());
                 carried_selev = ele2;
-                pts_2d.push(pt.to_2d());
                 let recorded_selev = if s_i == steps.len() - 1 && p_i == poly.len() - 1 {
                     endpoint_origin_ele2.unwrap_or(pt.elev)
                 } else {
@@ -1137,10 +1400,10 @@ impl AStarRouter {
                     let is_step_end = p_i == poly.len() - 1;
                     route_messages.push(Some(WayMessage {
                         linkdist: seg_dist_int,
-                        linkelevationcost: 0,
+                        linkelevationcost: elev_cost_int,
                         linkturncost: turn_cost_int,
-                        linknodecost: 0,
-                        linkinitcost: 0,
+                        linknodecost: if is_step_end { step_node_cost } else { 0 },
+                        linkinitcost: std::mem::take(&mut pending_init_cost),
                         costfactor: step_way_cost.map_or(1.0, |wc| wc.costfactor),
                         priorityclassifier: step_way_cost.map_or(0, |wc| wc.priorityclassifier),
                         classifiermask: step_way_cost.map_or(0, |wc| wc.classifiermask),
@@ -1172,96 +1435,154 @@ impl AStarRouter {
             if let Some(wc) = step_way_cost {
                 last_prio = wc.priorityclassifier;
             }
-            if let (Some(car_model), Some(ref mut eval)) = (car_kinematic, retrack_eval.as_mut()) {
-                if step.node_id != 0 {
-                    if let Some(target_node) = graph.nodes.get(&step.node_id) {
-                        if let Some(node_desc) = graph
-                            .node_descriptions
-                            .get(target_node.node_desc_id as usize)
-                        {
-                            eval.evaluate_way(&way_buf);
-                            lookups.node.decode_into(&mut node_buf, false, node_desc);
-                            let node_res = eval.evaluate_node(&node_buf);
-                            car_model
-                                .cut_ekin(&mut detail_state.ekin, (node_res.maxspeed as f64) / 3.6);
-                        }
-                    }
-                }
+            if let (Some(car_model), Some(node_res)) = (car_kinematic, step_node_res) {
+                car_model.cut_ekin(&mut detail_state.ekin, (node_res.maxspeed as f64) / 3.6);
             }
         }
 
-        post_elevation_check(&pts_2d, &mut raw_selevs);
-        for (idx, (pt, &selev)) in route_points.iter_mut().zip(raw_selevs.iter()).enumerate() {
-            pt.elevation_m = selev_to_elevation(selev);
-            if let Some(Some(msg)) = route_messages.get_mut(idx) {
-                msg.ele = selev;
-            }
-        }
+        Ok(RawLeg {
+            result: RouteResult {
+                total_distance_m: cum_dist,
+                total_time_s: cum_time,
+                total_energy_j: cum_energy,
+                total_cost: final_cost,
+                filtered_ascend_m: 0.0,
+                plain_ascend_m: 0.0,
+                points: route_points,
+                messages: route_messages,
+                voice_hints: Vec::new(),
+                turn_instruction_mode,
+            },
+            raw_selevs,
+            detours_by_track_idx,
+            is_beeline: false,
+        })
+    }
+}
 
-        let voice_hints = if turn_instruction_mode > 0 && route_points.len() >= 2 {
-            let last_idx = route_points.len() - 1;
-            let last_msg = route_messages[last_idx].clone().unwrap_or_default();
-            let mut inputs = Vec::with_capacity(route_points.len());
+struct RawLeg {
+    result: RouteResult,
+    raw_selevs: Vec<i16>,
+    detours_by_track_idx: FastHashMap<usize, Vec<WayMessage>>,
+    is_beeline: bool,
+}
+
+fn make_beeline_hint(leg: &RouteResult, index_in_track: usize) -> Option<VoiceHint> {
+    let pt0 = leg.points.first()?;
+    let msg = leg
+        .messages
+        .get(1)
+        .and_then(|m| m.clone())
+        .unwrap_or_default();
+    Some(VoiceHint {
+        ilon: spatial::lon_to_ilon(pt0.lon),
+        ilat: spatial::lat_to_ilat(pt0.lat),
+        selev: 0,
+        cmd: VoiceHint::BL,
+        old_way: msg.clone(),
+        good_way: msg,
+        distance_to_next: leg.total_distance_m,
+        index_in_track,
+        angle: 0.0,
+        ..Default::default()
+    })
+}
+
+fn finalize_raw_leg(
+    raw: RawLeg,
+    graph: &RoutingGraph,
+    profile: &Profile,
+    timode: i32,
+    beeline_hints: Vec<VoiceHint>,
+    run_recalc_track: bool,
+    kinematic_cfg: Option<&KinematicConfig>,
+) -> RouteResult {
+    let mut result = raw.result;
+    let mut raw_selevs = raw.raw_selevs;
+    let mut detours_by_track_idx = raw.detours_by_track_idx;
+    let pts_2d: Vec<Point2D> = result
+        .points
+        .iter()
+        .map(|pt| Point2D::new(spatial::lon_to_ilon(pt.lon), spatial::lat_to_ilat(pt.lat)))
+        .collect();
+
+    post_elevation_check(&pts_2d, &mut raw_selevs);
+    for (idx, (pt, &selev)) in result.points.iter_mut().zip(raw_selevs.iter()).enumerate() {
+        pt.elevation_m = selev_to_elevation(selev);
+        if let Some(Some(msg)) = result.messages.get_mut(idx) {
+            msg.ele = selev;
+        }
+    }
+
+    let mut voice_hints = if timode > 0 && result.points.len() >= 2 {
+        let last_idx = result.points.len() - 1;
+        let last_msg = result.messages[last_idx].clone().unwrap_or_default();
+        let mut inputs = Vec::with_capacity(result.points.len());
+        inputs.push(VoiceHint {
+            ilon: pts_2d[last_idx].lon,
+            ilat: pts_2d[last_idx].lat,
+            selev: raw_selevs[last_idx],
+            good_way: last_msg.clone(),
+            old_way: last_msg,
+            index_in_track: last_idx,
+            cmd: VoiceHint::END,
+            ..Default::default()
+        });
+        for idx in (0..last_idx).rev() {
+            let good_way = result.messages[idx + 1].clone().unwrap_or_default();
+            let old_way = result.messages[idx]
+                .clone()
+                .unwrap_or_else(|| good_way.clone());
+            let bad_ways = detours_by_track_idx.remove(&idx).unwrap_or_default();
             inputs.push(VoiceHint {
-                ilon: pts_2d[last_idx].lon,
-                ilat: pts_2d[last_idx].lat,
-                selev: raw_selevs[last_idx],
-                good_way: last_msg.clone(),
-                old_way: last_msg,
-                index_in_track: last_idx,
-                cmd: VoiceHint::END,
+                ilon: pts_2d[idx].lon,
+                ilat: pts_2d[idx].lat,
+                selev: raw_selevs[idx],
+                index_in_track: idx,
+                good_way,
+                old_way,
+                bad_ways,
                 ..Default::default()
             });
-            for idx in (0..last_idx).rev() {
-                let good_way = route_messages[idx + 1].clone().unwrap_or_default();
-                let old_way = route_messages[idx]
-                    .clone()
-                    .unwrap_or_else(|| good_way.clone());
-                let bad_ways = detours_by_track_idx.remove(&idx).unwrap_or_default();
-                inputs.push(VoiceHint {
-                    ilon: pts_2d[idx].lon,
-                    ilat: pts_2d[idx].lat,
-                    selev: raw_selevs[idx],
-                    index_in_track: idx,
-                    good_way,
-                    old_way,
-                    bad_ways,
-                    ..Default::default()
-                });
-            }
+        }
 
-            let modes = ModeFlags::from_profile(profile);
-            let transport_mode = TransportMode::from_flags(modes.car, modes.bike);
-            let catching_range =
-                profile.get_global_var("turnInstructionCatchingRange", 40.0) as f64;
-            let explicit_roundabouts = profile.get_global_var(
-                "turnInstructionRoundabouts",
-                if modes.foot { 0.0 } else { 1.0 },
-            ) != 0.0;
+        let modes = ModeFlags::from_profile(profile);
+        let transport_mode = TransportMode::from_flags(modes.car, modes.bike);
+        let catching_range = profile.get_global_var("turnInstructionCatchingRange", 40.0) as f64;
+        let explicit_roundabouts = profile.get_global_var(
+            "turnInstructionRoundabouts",
+            if modes.foot { 0.0 } else { 1.0 },
+        ) != 0.0;
 
-            let vproc = VoiceHintProcessor::new(explicit_roundabouts, transport_mode);
-            let raw_hints = vproc.process(inputs);
-            vproc.post_process(raw_hints, catching_range, transport_mode.min_distance())
-        } else {
-            Vec::new()
-        };
+        let vproc = VoiceHintProcessor::new(explicit_roundabouts, transport_mode);
+        let raw_hints = vproc.process(inputs);
+        vproc.post_process(raw_hints, catching_range, transport_mode.min_distance())
+    } else {
+        Vec::new()
+    };
 
-        let mut result = RouteResult {
-            total_distance_m: cum_dist,
-            total_time_s: cum_time,
-            total_energy_j: cum_energy,
-            total_cost: final_cost,
-            filtered_ascend_m: 0.0,
-            plain_ascend_m: 0.0,
-            points: route_points,
-            messages: route_messages,
-            voice_hints,
-            turn_instruction_mode,
-        };
-        result.recalc_track_elevation(graph);
-
-        Ok(result)
+    if !beeline_hints.is_empty() && timode > 0 {
+        for bh in beeline_hints {
+            voice_hints.retain(|vh| vh.index_in_track != bh.index_in_track);
+            voice_hints.push(bh);
+        }
+        voice_hints.sort_by_key(|vh| vh.index_in_track);
     }
+
+    result.voice_hints = voice_hints;
+    result.turn_instruction_mode = timode;
+
+    if run_recalc_track {
+        if let Some(cfg) = kinematic_cfg {
+            result.recalc_track(graph, cfg);
+        } else {
+            result.recalc_track_elevation(graph);
+        }
+    } else {
+        result.recalc_track_elevation(graph);
+    }
+
+    result
 }
 
 /// Configuration and references for a single A* search pass.
@@ -1746,23 +2067,70 @@ impl<'a> SearchPassState<'a> {
             }
         }
 
+        let mut frontier_edges_to_close: Vec<u32> = Vec::new();
+        for &u_id in &keep_nodes {
+            if let Some(&(start, count)) = ctx.graph.node_edge_offsets.get(&u_id) {
+                let edges = &ctx.graph.flat_edges[start as usize..start as usize + count as usize];
+                for e in edges {
+                    if !keep_nodes.contains(&e.target_id) && !self.is_edge_closed(e.edge_idx) {
+                        frontier_edges_to_close.push(e.edge_idx);
+                    }
+                }
+            }
+        }
+        for edge_idx in frontier_edges_to_close {
+            self.mark_edge_closed(edge_idx);
+        }
+
         if let Some(graph_mut) = ctx.graph.as_mut() {
             graph_mut.compact_live_nodes(&mut keep_nodes, &frontier_cells);
         }
 
-        for item in self.open_set.as_slice() {
-            let sn = self.node_pool.get_mut(item.node_idx);
-            if sn.node_id != 0 {
-                let (new_start, new_count) = ctx
-                    .graph
-                    .node_edge_offsets
-                    .get(&sn.node_id)
-                    .copied()
-                    .unwrap_or((u32::MAX, 0));
-                sn.out_edges_start = new_start;
-                sn.out_edges_count = new_count;
+        let mut drained_items = Vec::with_capacity(self.open_set.len());
+        self.open_set.drain_all(&mut drained_items);
+        let mut live_edge_idxs: FastHashSet<u32> = FastHashSet::default();
+        for item in drained_items {
+            let sn_copy = *self.node_pool.get(item.node_idx);
+            let keep = if sn_copy.node_id == 0 {
+                true
+            } else {
+                let edge_open =
+                    sn_copy.edge_idx == u32::MAX || !self.is_edge_closed(sn_copy.edge_idx);
+                let bound_ok = !pass1_bound.is_some_and(|(_, max_cost)| {
+                    sn_copy.cost.saturating_add(sn_copy.air_dist) > max_cost
+                });
+                edge_open && bound_ok && keep_nodes.contains(&sn_copy.node_id)
+            };
+            if keep {
+                if sn_copy.node_id != 0 {
+                    let (new_start, new_count) = ctx
+                        .graph
+                        .node_edge_offsets
+                        .get(&sn_copy.node_id)
+                        .copied()
+                        .unwrap_or((u32::MAX, 0));
+                    let sn = self.node_pool.get_mut(item.node_idx);
+                    sn.out_edges_start = new_start;
+                    sn.out_edges_count = new_count;
+                }
+                if sn_copy.edge_idx != u32::MAX {
+                    live_edge_idxs.insert(sn_copy.edge_idx);
+                }
+                self.open_set.push(item);
+            } else {
+                self.node_pool.free(item.node_idx);
             }
         }
+
+        let edge_states_free = &mut self.edge_states_free;
+        self.edge_heads.retain(|edge_idx, &mut entry_idx| {
+            if live_edge_idxs.contains(edge_idx) {
+                true
+            } else {
+                edge_states_free.push(entry_idx);
+                false
+            }
+        });
     }
 
     #[inline(always)]
@@ -1871,7 +2239,7 @@ impl<'a> SearchPassState<'a> {
                                     is_detail: false,
                                     pre_paths: &[],
                                 };
-                                let (mut cost, _, _, _, _) = process_polyline(
+                                let (mut cost, sliced_dist, _, _, _) = process_polyline(
                                     &sliced,
                                     &mut path_state,
                                     &mut path_selev,
@@ -1885,7 +2253,33 @@ impl<'a> SearchPassState<'a> {
                                 if way_cost.istrafficbackbone {
                                     cost = 0;
                                 }
-                                let cost = cost + nogo_cost;
+                                let mut dir_penalty = 0u32;
+                                if let Some(start_dir) = ctx.start_direction {
+                                    let edge_dir = spatial::get_direction(
+                                        sliced[0].to_2d(),
+                                        sliced[1].to_2d(),
+                                    );
+                                    let diff =
+                                        spatial::get_difference_from_direction(start_dir, edge_dir);
+                                    if ctx.force_start_direction && diff > 90.0 {
+                                        dir_penalty = 10_000;
+                                    } else if diff > 45.0 {
+                                        dir_penalty = ((diff - 45.0)
+                                            * (way_cost.turncost as f64).max(50.0)
+                                            / 90.0)
+                                            as u32;
+                                    }
+                                }
+                                let mut ref_penalty = 0u32;
+                                if let Some(ref_nodes) = ctx.ref_nodes {
+                                    if ref_nodes.contains(&s_id) && ref_nodes.contains(&t_id) {
+                                        ref_penalty = sliced_dist.round().max(1.0) as u32;
+                                    }
+                                }
+                                let cost = cost
+                                    .saturating_add(nogo_cost)
+                                    .saturating_add(dir_penalty)
+                                    .saturating_add(ref_penalty);
                                 if cost < self.final_cost {
                                     self.final_cost = cost;
                                     let h_idx = self.alloc_history(HistoryStep {
@@ -2069,7 +2463,8 @@ impl<'a> SearchPassState<'a> {
                                 }
                             }
 
-                            let mut total_cost = cost + nogo_cost + dir_penalty;
+                            let mut total_cost =
+                                cost.saturating_add(nogo_cost).saturating_add(dir_penalty);
                             if let Some(target_node) = t_node {
                                 if target_node.node_desc_id != NO_DESC {
                                     let access_granted = if ctx.car_kinematic.is_some() {
@@ -2125,12 +2520,14 @@ impl<'a> SearchPassState<'a> {
                                             (node_res.maxspeed as f64) / 3.6,
                                         );
                                     }
-                                    total_cost += node_res.initialcost as u32;
+                                    total_cost =
+                                        total_cost.saturating_add(node_res.initialcost as u32);
                                 }
                             }
 
                             let air_dist = distance(t_node_pt, ctx.target_mwp.crosspoint);
-                            let priority = total_cost + (air_dist * ctx.air_distance_factor) as u32;
+                            let priority = total_cost
+                                .saturating_add((air_dist * ctx.air_distance_factor) as u32);
 
                             let (down_div, up_div) = if ctx.car_kinematic.is_some() {
                                 (-1, 0)
@@ -2149,17 +2546,12 @@ impl<'a> SearchPassState<'a> {
                             self.sliced_map.insert(h_idx, sliced);
 
                             let in_destination = (way_cost.classifiermask & 64) != 0;
-                            self.get_or_create_edge_state(edge.edge_idx).push(
-                                CandidateState::with_context(
-                                    total_cost,
-                                    path_state.ehbd,
-                                    path_state.ehbu,
-                                    h_idx,
-                                    path_selev,
-                                    in_destination,
-                                    in_destination,
-                                ),
-                            );
+                            let (out_edges_start, out_edges_count) =
+                                if edge.target_edges_start == u32::MAX {
+                                    ctx.graph.get_node_edge_slice(t_id)
+                                } else {
+                                    (edge.target_edges_start, edge.target_edges_count)
+                                };
 
                             let node_idx = self.node_pool.alloc(SearchNode {
                                 node_id: t_id,
@@ -2182,10 +2574,10 @@ impl<'a> SearchPassState<'a> {
                                 in_destination,
                                 can_leave_destination: in_destination,
                                 has_tr: edge.has_target_tr,
-                                edge_idx: edge.edge_idx,
-                                rev_edge_idx: edge.rev_edge_idx,
-                                out_edges_start: edge.target_edges_start,
-                                out_edges_count: edge.target_edges_count,
+                                edge_idx: u32::MAX,
+                                rev_edge_idx: u32::MAX,
+                                out_edges_start,
+                                out_edges_count,
                                 node_desc_id: edge.target_node_desc_id,
                             });
                             self.open_set.push(HeapItem { priority, node_idx });
@@ -2339,7 +2731,7 @@ impl<'a> SearchPassState<'a> {
                 if ctx.air_distance_factor == 0.0 && curr.cost >= max_cost {
                     break;
                 }
-                if curr.cost + curr.air_dist > max_cost {
+                if curr.cost.saturating_add(curr.air_dist) > max_cost {
                     continue;
                 }
             }
@@ -2397,7 +2789,10 @@ impl<'a> SearchPassState<'a> {
                         curr.up_div,
                     );
                     let remaining_p0 = guide.pass0_total_cost.saturating_sub(p0_link_cost);
-                    let cost_estimate = curr.cost + elev_corr + remaining_p0;
+                    let cost_estimate = curr
+                        .cost
+                        .saturating_add(elev_corr)
+                        .saturating_add(remaining_p0);
                     if let Some(ref mut max_cost) = self.max_cost_limit {
                         if cost_estimate < *max_cost {
                             *max_cost = cost_estimate;
@@ -2585,7 +2980,7 @@ impl<'a> SearchPassState<'a> {
                 Point2D::new(edge.target_lon, edge.target_lat),
                 ctx.target_mwp.crosspoint,
             ) as u32;
-            if curr.cost + d > max_cost {
+            if curr.cost.saturating_add(d) > max_cost {
                 return;
             }
             air_dist_opt = Some(d);
@@ -2656,85 +3051,137 @@ impl<'a> SearchPassState<'a> {
             }
             let sliced = slice_to_crosspoint(&self.poly_buf, ctx.target_mwp.crosspoint);
             if sliced.len() >= 2 {
-                let nogo_res = check_polyline_against_nogos(&sliced, ctx.nogos);
-                let nogo_cost = match nogo_res {
-                    NogoCheckResult::Blocked => return,
-                    NogoCheckResult::Pass { added_cost } => added_cost,
-                };
-                let mut path_state = curr.path_state;
-                let mut path_selev = curr.path_selev;
-                let edge_ctx = EdgeContext {
-                    crossing_class,
-                    old_prio: curr.priority_classifier,
-                    prev_point: prev_pt,
-                    is_start: false,
-                    is_detail: false,
-                    pre_paths,
-                };
-                let (mut edge_cost, _, _, _, penultimate_pt) = process_polyline(
-                    &sliced,
-                    &mut path_state,
-                    &mut path_selev,
-                    way_cost,
-                    &ctx.routing_configs(),
-                    &edge_ctx,
-                );
-                if edge_cost == u32::MAX {
-                    return;
-                }
-                if curr.cost == 0 && way_cost.istrafficbackbone {
-                    edge_cost = 0;
-                }
-                edge_cost += classifier_cost + nogo_cost;
-
-                let target_cost = curr.cost + edge_cost;
-                if target_cost < self.final_cost {
-                    self.final_cost = target_cost;
-                    let h_idx = self.alloc_history(HistoryStep {
-                        node_id: 0,
-                        from_node_id: curr.node_id,
-                        cost: target_cost,
-                        global_edge_idx: edge.edge_idx,
-                        edge_idx: edge_idx as u16,
-                        maxspeed: way_cost.maxspeed,
-                        prev_idx: curr.history_idx,
-                    });
-                    self.sliced_map.insert(h_idx, sliced);
-                    let node_idx = self.node_pool.alloc(SearchNode {
-                        node_id: 0,
-                        from_node_id: curr.node_id,
-                        ilon: ctx.target_mwp.crosspoint.lon,
-                        ilat: ctx.target_mwp.crosspoint.lat,
-                        cost: target_cost,
-                        air_dist: 0,
-                        priority: target_cost,
-                        path_state,
-                        prev_lon: penultimate_pt.lon,
-                        prev_lat: penultimate_pt.lat,
-                        priority_classifier: curr.priority_classifier,
-                        down_div: 0,
-                        up_div: 0,
-                        history_idx: h_idx,
-                        selev: 0,
-                        path_selev,
-                        last_classifier: 0,
-                        in_destination: false,
-                        can_leave_destination: false,
-                        has_tr: false,
-                        edge_idx: edge.edge_idx,
-                        rev_edge_idx: edge.rev_edge_idx,
-                        out_edges_start: 0,
-                        out_edges_count: 0,
-                        node_desc_id: NO_DESC,
-                    });
-                    self.open_set.push(HeapItem {
-                        priority: target_cost,
-                        node_idx,
-                    });
-                    self.best_target_history = Some(h_idx);
+                if let NogoCheckResult::Pass {
+                    added_cost: nogo_cost,
+                } = check_polyline_against_nogos(&sliced, ctx.nogos)
+                {
+                    let mut path_state = curr.path_state;
+                    let mut path_selev = curr.path_selev;
+                    let edge_ctx = EdgeContext {
+                        crossing_class,
+                        old_prio: curr.priority_classifier,
+                        prev_point: prev_pt,
+                        is_start: false,
+                        is_detail: false,
+                        pre_paths,
+                    };
+                    let (mut edge_cost, _, _, _, mut penultimate_pt) = process_polyline(
+                        &sliced,
+                        &mut path_state,
+                        &mut path_selev,
+                        way_cost,
+                        &ctx.routing_configs(),
+                        &edge_ctx,
+                    );
+                    let mut base_parent_cost = curr.cost;
+                    let mut chosen_h_idx = curr.history_idx;
+                    let mut valid = edge_cost != u32::MAX;
+                    if valid && curr.cost == 0 && way_cost.istrafficbackbone {
+                        edge_cost = 0;
+                    }
+                    if extra_cands.len() > 1 {
+                        let mut best_combined = if valid {
+                            base_parent_cost.saturating_add(edge_cost)
+                        } else {
+                            u32::MAX
+                        };
+                        for cand in extra_cands {
+                            if (cand.history_idx == curr.history_idx && cand.cost == curr.cost)
+                                || cand.cost >= best_combined
+                            {
+                                continue;
+                            }
+                            let cand_dest = cand.in_destination;
+                            let cand_can_leave = cand.can_leave_destination;
+                            if !is_destination && cand_dest && !cand_can_leave {
+                                continue;
+                            }
+                            let mut cand_state = PathState {
+                                ehbd: cand.ehbd,
+                                ehbu: cand.ehbu,
+                                ..Default::default()
+                            };
+                            let mut cand_selev = cand.path_selev;
+                            let (mut cand_edge_cost, _, _, _, cand_penult) = process_polyline(
+                                &sliced,
+                                &mut cand_state,
+                                &mut cand_selev,
+                                way_cost,
+                                &ctx.routing_configs(),
+                                &edge_ctx,
+                            );
+                            if cand_edge_cost == u32::MAX {
+                                continue;
+                            }
+                            if cand.cost == 0 && way_cost.istrafficbackbone {
+                                cand_edge_cost = 0;
+                            }
+                            let combined = cand.cost.saturating_add(cand_edge_cost);
+                            if !valid || combined < best_combined {
+                                valid = true;
+                                best_combined = combined;
+                                base_parent_cost = cand.cost;
+                                edge_cost = cand_edge_cost;
+                                path_state = cand_state;
+                                path_selev = cand_selev;
+                                chosen_h_idx = cand.history_idx;
+                                penultimate_pt = cand_penult;
+                            }
+                        }
+                    }
+                    if valid {
+                        edge_cost = edge_cost
+                            .saturating_add(classifier_cost)
+                            .saturating_add(nogo_cost);
+                        let target_cost = base_parent_cost.saturating_add(edge_cost);
+                        if target_cost < self.final_cost {
+                            self.final_cost = target_cost;
+                            let h_idx = self.alloc_history(HistoryStep {
+                                node_id: 0,
+                                from_node_id: curr.node_id,
+                                cost: target_cost,
+                                global_edge_idx: edge.edge_idx,
+                                edge_idx: edge_idx as u16,
+                                maxspeed: way_cost.maxspeed,
+                                prev_idx: chosen_h_idx,
+                            });
+                            self.sliced_map.insert(h_idx, sliced);
+                            let node_idx = self.node_pool.alloc(SearchNode {
+                                node_id: 0,
+                                from_node_id: curr.node_id,
+                                ilon: ctx.target_mwp.crosspoint.lon,
+                                ilat: ctx.target_mwp.crosspoint.lat,
+                                cost: target_cost,
+                                air_dist: 0,
+                                priority: target_cost,
+                                path_state,
+                                prev_lon: penultimate_pt.lon,
+                                prev_lat: penultimate_pt.lat,
+                                priority_classifier: curr.priority_classifier,
+                                down_div: 0,
+                                up_div: 0,
+                                history_idx: h_idx,
+                                selev: 0,
+                                path_selev,
+                                last_classifier: 0,
+                                in_destination: false,
+                                can_leave_destination: false,
+                                has_tr: false,
+                                edge_idx: edge.edge_idx,
+                                rev_edge_idx: edge.rev_edge_idx,
+                                out_edges_start: 0,
+                                out_edges_count: 0,
+                                node_desc_id: NO_DESC,
+                            });
+                            self.open_set.push(HeapItem {
+                                priority: target_cost,
+                                node_idx,
+                            });
+                            self.best_target_history = Some(h_idx);
+                        }
+                    }
                 }
             }
-            return;
         }
 
         let mut path_state = curr.path_state;
@@ -2816,7 +3263,7 @@ impl<'a> SearchPassState<'a> {
         // (matching RoutingEngine.java:2257-2274).
         let mut base_parent_cost = curr.cost;
         if extra_cands.len() > 1 {
-            let mut best_combined = base_parent_cost + edge_cost;
+            let mut best_combined = base_parent_cost.saturating_add(edge_cost);
             for cand in extra_cands {
                 if (cand.history_idx == curr.history_idx && cand.cost == curr.cost)
                     || cand.cost >= best_combined
@@ -2867,7 +3314,7 @@ impl<'a> SearchPassState<'a> {
                 if cand.cost == 0 && way_cost.istrafficbackbone {
                     cand_edge_cost = 0;
                 }
-                let combined = cand.cost + cand_edge_cost;
+                let combined = cand.cost.saturating_add(cand_edge_cost);
                 if combined < best_combined {
                     best_combined = combined;
                     base_parent_cost = cand.cost;
@@ -2881,14 +3328,16 @@ impl<'a> SearchPassState<'a> {
             }
         }
 
-        edge_cost += classifier_cost + nogo_cost;
+        edge_cost = edge_cost
+            .saturating_add(classifier_cost)
+            .saturating_add(nogo_cost);
 
         if let Some(ref_nodes) = ctx.ref_nodes {
             let source_id = Point2D::new(curr.ilon, curr.ilat).node_id();
             let target_id = edge.target_id;
             if ref_nodes.contains(&source_id) && ref_nodes.contains(&target_id) {
                 let reftrackcost = edge_dist.round().max(1.0) as u32;
-                edge_cost += reftrackcost;
+                edge_cost = edge_cost.saturating_add(reftrackcost);
             }
         }
 
@@ -2959,11 +3408,11 @@ impl<'a> SearchPassState<'a> {
                 if let Some(car_model) = ctx.car_kinematic {
                     car_model.cut_ekin(&mut path_state.ekin, (node_res.maxspeed as f64) / 3.6);
                 }
-                edge_cost += node_res.initialcost as u32;
+                edge_cost = edge_cost.saturating_add(node_res.initialcost as u32);
             }
         }
 
-        let new_cost = base_parent_cost + edge_cost;
+        let new_cost = base_parent_cost.saturating_add(edge_cost);
         let (down_div, up_div) = if ctx.car_kinematic.is_some() {
             (-1, 0)
         } else {
@@ -2979,7 +3428,9 @@ impl<'a> SearchPassState<'a> {
                     up_div,
                 );
                 let remaining_p0 = guide.pass0_total_cost.saturating_sub(p0_link_cost);
-                let cost_estimate = new_cost + elev_corr + remaining_p0;
+                let cost_estimate = new_cost
+                    .saturating_add(elev_corr)
+                    .saturating_add(remaining_p0);
                 if let Some(ref mut max_cost) = self.max_cost_limit {
                     if cost_estimate < *max_cost {
                         *max_cost = cost_estimate;
@@ -2998,7 +3449,7 @@ impl<'a> SearchPassState<'a> {
                     ctx.target_mwp.crosspoint,
                 ) as u32
             });
-            if new_cost + d > max_cost {
+            if new_cost.saturating_add(d) > max_cost {
                 return;
             }
             air_dist_opt = Some(d);
@@ -3062,7 +3513,7 @@ impl<'a> SearchPassState<'a> {
                 ctx.target_mwp.crosspoint,
             ) as u32
         });
-        let priority = new_cost + (air_dist as f64 * ctx.air_distance_factor) as u32;
+        let priority = new_cost.saturating_add((air_dist as f64 * ctx.air_distance_factor) as u32);
 
         let node_idx = self.node_pool.alloc(SearchNode {
             node_id: edge.target_id,
@@ -3252,7 +3703,7 @@ fn process_polyline(
     configs: &RoutingConfigs,
     edge_ctx: &EdgeContext,
 ) -> (Cost, Distance, Seconds, Joules, Point2D) {
-    let mut edge_cost = 0;
+    let mut edge_cost: Cost = 0;
     let mut edge_dist = 0.0;
     let mut edge_time = 0.0;
     let mut edge_energy = 0.0;
@@ -3369,7 +3820,9 @@ fn process_polyline(
             )
         };
 
-        edge_cost += sec.section_cost_int;
+        edge_cost = edge_cost
+            .saturating_add(sec.section_cost_int)
+            .min(u32::MAX - 1);
         edge_dist += seg_dist;
         edge_time += sec.time_seconds;
         edge_energy += sec.energy_joules;
@@ -3384,4 +3837,303 @@ fn process_polyline(
     };
 
     (edge_cost, edge_dist, edge_time, edge_energy, penultimate_pt)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::node::make_node_id;
+    use crate::graph::routing_graph::CellProvider;
+    use crate::rd5::codec::tag_coder::TagValueWrapper;
+    use crate::rd5::micro_cache::{DecodedLink, DecodedMicroCache, DecodedNode};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_gc_graph_closes_evicted_frontier_edges_and_prunes_open_set() {
+        struct PocketProvider {
+            cells: HashMap<(i32, i32), DecodedMicroCache>,
+        }
+
+        impl CellProvider for PocketProvider {
+            fn divisor_for_degree(&self, _lon_degree: i32, _lat_degree: i32) -> i32 {
+                80
+            }
+
+            fn load_cell(
+                &self,
+                _lon_degree: i32,
+                _lat_degree: i32,
+                lon_idx: i32,
+                lat_idx: i32,
+            ) -> std::io::Result<Option<(DecodedMicroCache, u8)>> {
+                Ok(self.cells.get(&(lon_idx, lat_idx)).cloned().map(|c| (c, 3)))
+            }
+        }
+
+        let lookups = LookupData::parse("---context:way\n---context:node\n").unwrap();
+        let profile = Profile::parse(
+            "oneway_test",
+            "---context:global\n\
+             ---context:way\n\
+             assign costfactor = if reversedirection=yes then 10000 else 1.0\n\
+             ---context:node\n",
+            &lookups,
+        )
+        .unwrap();
+
+        let way_tags = || {
+            Some(TagValueWrapper {
+                data: vec![1],
+                access_type: 2,
+            })
+        };
+
+        let lat: i32 = 141_005_000;
+        let lat_idx = lat.div_euclid(12_500);
+        // B in C_front (lon_idx = 14401)
+        let b_lon: i32 = 180_015_000;
+        let b_cell = (b_lon.div_euclid(12_500), lat_idx);
+        // X in C_pocket (lon_idx = 14400)
+        let x_lon: i32 = 180_005_000;
+        let x_cell = (x_lon.div_euclid(12_500), lat_idx);
+        // X2, X3 in C_pocket2 (lat_idx + 1)
+        let pocket2_lat: i32 = 141_018_000;
+        let pocket2_cell = (x_lon.div_euclid(12_500), pocket2_lat.div_euclid(12_500));
+        // T in C_target (lon_idx = 14403)
+        let t_lon: i32 = 180_040_000;
+        let t_cell = (t_lon.div_euclid(12_500), lat_idx);
+
+        let mut cells = HashMap::new();
+        cells.insert(
+            b_cell,
+            DecodedMicroCache {
+                lon_idx: b_cell.0,
+                lat_idx: b_cell.1,
+                nodes: vec![DecodedNode {
+                    ilon: b_lon,
+                    ilat: lat,
+                    selev: 100,
+                    node_tags: None,
+                    turn_restrictions: Vec::new(),
+                    links: vec![
+                        DecodedLink {
+                            target_lon: t_lon,
+                            target_lat: lat,
+                            is_reverse: false,
+                            way_tags: way_tags(),
+                            geometry: Vec::new(),
+                        },
+                        DecodedLink {
+                            target_lon: x_lon,
+                            target_lat: lat,
+                            is_reverse: false,
+                            way_tags: way_tags(),
+                            geometry: Vec::new(),
+                        },
+                    ],
+                }],
+            },
+        );
+        cells.insert(
+            x_cell,
+            DecodedMicroCache {
+                lon_idx: x_cell.0,
+                lat_idx: x_cell.1,
+                nodes: vec![DecodedNode {
+                    ilon: x_lon,
+                    ilat: lat,
+                    selev: 100,
+                    node_tags: None,
+                    turn_restrictions: Vec::new(),
+                    links: vec![
+                        DecodedLink {
+                            target_lon: x_lon,
+                            target_lat: pocket2_lat,
+                            is_reverse: false,
+                            way_tags: way_tags(),
+                            geometry: Vec::new(),
+                        },
+                        DecodedLink {
+                            target_lon: x_lon + 1000,
+                            target_lat: pocket2_lat,
+                            is_reverse: false,
+                            way_tags: way_tags(),
+                            geometry: Vec::new(),
+                        },
+                    ],
+                }],
+            },
+        );
+        cells.insert(
+            pocket2_cell,
+            DecodedMicroCache {
+                lon_idx: pocket2_cell.0,
+                lat_idx: pocket2_cell.1,
+                nodes: vec![
+                    DecodedNode {
+                        ilon: x_lon,
+                        ilat: pocket2_lat,
+                        selev: 100,
+                        node_tags: None,
+                        turn_restrictions: Vec::new(),
+                        links: vec![DecodedLink {
+                            target_lon: x_lon + 1000,
+                            target_lat: pocket2_lat,
+                            is_reverse: false,
+                            way_tags: way_tags(),
+                            geometry: Vec::new(),
+                        }],
+                    },
+                    DecodedNode {
+                        ilon: x_lon + 1000,
+                        ilat: pocket2_lat,
+                        selev: 100,
+                        node_tags: None,
+                        turn_restrictions: Vec::new(),
+                        links: Vec::new(),
+                    },
+                ],
+            },
+        );
+        cells.insert(
+            t_cell,
+            DecodedMicroCache {
+                lon_idx: t_cell.0,
+                lat_idx: t_cell.1,
+                nodes: vec![DecodedNode {
+                    ilon: t_lon,
+                    ilat: lat,
+                    selev: 100,
+                    node_tags: None,
+                    turn_restrictions: Vec::new(),
+                    links: Vec::new(),
+                }],
+            },
+        );
+
+        let b_id = make_node_id(b_lon, lat);
+        let x_id = make_node_id(x_lon, lat);
+        let x2_id = make_node_id(x_lon, pocket2_lat);
+        let x3_id = make_node_id(x_lon + 1000, pocket2_lat);
+        let t_id = make_node_id(t_lon, lat);
+
+        let mut graph = RoutingGraph::with_cell_provider(Arc::new(PocketProvider { cells }));
+        graph.ensure_node_finalized(b_id);
+        graph.ensure_node_finalized(x_id);
+        graph.ensure_node_finalized(x2_id);
+        graph.ensure_node_finalized(x3_id);
+        let b_to_x_edge_idx = graph
+            .get_edges(b_id)
+            .iter()
+            .find(|e| e.target_id == x_id)
+            .unwrap()
+            .edge_idx;
+
+        let start_mwp = MatchedWaypoint::new("from", Point2D::new(b_lon, lat), 50.0);
+        let target_mwp = MatchedWaypoint::new("to", Point2D::new(t_lon, lat), 50.0);
+
+        let kinematic_cfg = KinematicConfig::from_profile(&profile);
+        let elev_cfg = ElevationConfig::from_profile(&profile);
+        let pass_cfg = PassConfigs {
+            kinematic: &kinematic_cfg,
+            car_kinematic: None,
+            elev: &elev_cfg,
+        };
+        let params = SearchPassParams {
+            start_mwp: &start_mwp,
+            target_mwp: &target_mwp,
+            air_distance_factor: 1.5,
+            cost_cutting: None,
+            ref_nodes: None,
+            nogos: &[],
+            start_direction: None,
+            force_start_direction: false,
+        };
+
+        let mut gref = GraphRef::from(&mut graph);
+        let mut ctx = SearchPassContext::new(&mut gref, &lookups, &profile, &pass_cfg, &params);
+        let total_edges = ctx.graph.total_edges;
+        let mut state = SearchPassState::new(&ctx, &profile, None, total_edges, 1024);
+
+        // Seed B and a dead pocket node X on the open set
+        let b_slice = ctx.graph.get_node_edge_slice(b_id);
+        let b_idx = state.node_pool.alloc(SearchNode {
+            node_id: b_id,
+            from_node_id: 0,
+            ilon: b_lon,
+            ilat: lat,
+            cost: 0,
+            air_dist: 1000,
+            priority: 1500,
+            history_idx: u32::MAX,
+            edge_idx: u32::MAX,
+            rev_edge_idx: u32::MAX,
+            out_edges_start: b_slice.0,
+            out_edges_count: b_slice.1,
+            selev: 100,
+            path_selev: 100,
+            node_desc_id: NO_DESC,
+            ..Default::default()
+        });
+        state.open_set.push(HeapItem {
+            priority: 1500,
+            node_idx: b_idx,
+        });
+
+        state
+            .get_or_create_edge_state(b_to_x_edge_idx)
+            .push(CandidateState::new(500, 0, 0));
+        let x_slice = ctx.graph.get_node_edge_slice(x_id);
+        let x_idx = state.node_pool.alloc(SearchNode {
+            node_id: x_id,
+            from_node_id: b_id,
+            ilon: x_lon,
+            ilat: lat,
+            cost: 500,
+            air_dist: 2000,
+            priority: 3500,
+            history_idx: u32::MAX,
+            edge_idx: b_to_x_edge_idx,
+            rev_edge_idx: u32::MAX,
+            out_edges_start: x_slice.0,
+            out_edges_count: x_slice.1,
+            selev: 100,
+            path_selev: 100,
+            node_desc_id: NO_DESC,
+            ..Default::default()
+        });
+        state.open_set.push(HeapItem {
+            priority: 3500,
+            node_idx: x_idx,
+        });
+
+        state.gc_graph(&mut ctx);
+
+        assert!(
+            state.is_edge_closed(b_to_x_edge_idx),
+            "Frontier edge into evicted pocket must be closed"
+        );
+        assert!(
+            !ctx.graph.nodes.contains_key(&x_id),
+            "Unreachable pocket node must be evicted"
+        );
+        assert_eq!(
+            state.open_set.len(),
+            1,
+            "Dead pocket open-set entry must be pruned"
+        );
+        assert!(
+            !state.edge_heads.contains_key(&b_to_x_edge_idx),
+            "Closed/pruned edge must be removed from edge_heads"
+        );
+
+        state.run_search(&mut ctx).unwrap();
+        let track = state.reconstruct_track(&ctx).unwrap();
+        assert_eq!(track.steps.last().unwrap().node_id, t_id);
+        assert!(
+            !ctx.graph.loaded_cells.contains_key(&x_cell),
+            "Evicted pocket cell must not be re-opened after GC"
+        );
+    }
 }

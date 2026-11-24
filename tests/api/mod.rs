@@ -410,7 +410,7 @@ async fn test_brouter_kml_voicehints_beeline_and_custom_profile() {
 
     let uri_custom =
         "/brouter?lonlats=-0.143613,51.462414|-0.055296,51.544998&profile=custom_my_fastbike&format=geojson";
-    let resp_custom = app
+    let res = app
         .oneshot(
             Request::builder()
                 .uri(uri_custom)
@@ -419,5 +419,107 @@ async fn test_brouter_kml_voicehints_beeline_and_custom_profile() {
         )
         .await
         .unwrap();
-    assert_eq!(resp_custom.status(), StatusCode::OK);
+    assert_eq!(res.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_server_hardening_profile_validation_headers_and_bounded_cache() {
+    use brouter_rs::graph::routing_graph::RoutingGraph;
+
+    let state = Arc::new(
+        crate::common::server::ServerState::with_graph(
+            repo_path("data/segments4"),
+            repo_path("profiles"),
+            Arc::new(RoutingGraph::new()),
+        )
+        .expect("ServerState with empty graph should initialize"),
+    );
+    let app = create_router(Arc::clone(&state));
+
+    // 1. Path traversal and CRLF header injection via ?profile= rejected with 400
+    for bad_uri in [
+        "/brouter?lonlats=-0.14,51.46|-0.05,51.54&profile=../../etc/passwd",
+        "/brouter?lonlats=-0.14,51.46|-0.05,51.54&profile=bad%0d%0aX-Test:1&format=gpx",
+    ] {
+        let resp = app
+            .clone()
+            .oneshot(Request::builder().uri(bad_uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{bad_uri}");
+    }
+
+    // 2. Inline customprofile + malicious profile filename sanitizes Content-Disposition cleanly
+    let custom_brf = "---context:global\n---context:way\nassign costfactor = 1\n---context:node\n";
+    let encoded_brf = custom_brf.replace(' ', "%20").replace('\n', "%0A");
+    let resp_gpx = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/brouter?lonlats=-0.14,51.46,d|-0.05,51.54&format=gpx&profile=bad%22name%0d%0aX-Inj:1&customprofile={encoded_brf}"
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp_gpx.status(), StatusCode::OK);
+    let disp = resp_gpx
+        .headers()
+        .get("content-disposition")
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert_eq!(disp, "attachment; filename=\"badnameX-Inj1.gpx\"");
+
+    // 3. Invalid profile upload IDs return 400
+    for bad_upload in ["/brouter/profile/..", "/brouter/profile/foo%2fbar"] {
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(bad_upload)
+                    .body(Body::from(custom_brf))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{bad_upload}");
+    }
+
+    // 4. Custom uploaded profile cache is bounded at <= 256 entries
+    for i in 0..260 {
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/brouter/profile/item_{i}"))
+                    .body(Body::from(custom_brf))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+    let custom_count = state
+        .cached_profiles
+        .read()
+        .unwrap()
+        .keys()
+        .filter(|k| k.starts_with("custom_"))
+        .count();
+    assert_eq!(custom_count, 256);
+    assert!(!state
+        .cached_profiles
+        .read()
+        .unwrap()
+        .contains_key("custom_item_0"));
+    assert!(state
+        .cached_profiles
+        .read()
+        .unwrap()
+        .contains_key("custom_item_259"));
 }

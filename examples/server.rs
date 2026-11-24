@@ -10,11 +10,11 @@
 //! cargo run --release --example server
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::{Path, Query, State};
@@ -35,6 +35,35 @@ use brouter_rs::types::BoundingBox;
 
 static CUSTOM_PROFILE_COUNTER: AtomicU64 = AtomicU64::new(1);
 const MAX_CUSTOM_PROFILE_LEN: usize = 100_000;
+const MAX_CUSTOM_PROFILES: usize = 256;
+
+fn is_valid_profile_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 128
+        && !name.starts_with('.')
+        && !name.contains("..")
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.'))
+}
+
+fn sanitize_filename(name: &str) -> String {
+    let filtered: String = name
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+        .collect();
+    let mut cleaned = filtered.as_str();
+    while cleaned.starts_with('.') {
+        cleaned = &cleaned[1..];
+    }
+    let no_dots = cleaned.replace("..", "_");
+    let trimmed = no_dots.trim_start_matches('.');
+    if trimmed.is_empty() {
+        "route".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(name = "brouter-server")]
@@ -90,6 +119,7 @@ pub struct ServerState {
     pub profiles_dir: PathBuf,
     pub lookups: Arc<LookupData>,
     pub cached_profiles: RwLock<HashMap<String, Arc<Profile>>>,
+    custom_profile_order: Mutex<VecDeque<String>>,
     pub graph: Arc<RoutingGraph>,
     pub router: AStarRouter,
 }
@@ -109,6 +139,7 @@ impl ServerState {
             profiles_dir,
             lookups,
             cached_profiles: RwLock::new(HashMap::new()),
+            custom_profile_order: Mutex::new(VecDeque::new()),
             graph,
             router: AStarRouter::new(),
         })
@@ -122,7 +153,7 @@ impl ServerState {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut tile_mgr = TileManager::new(&segments_dir);
         let mut graph = RoutingGraph::with_capacities(4_500_000, 11_000_000);
-        let _ = graph.load_bounding_box(&mut tile_mgr, bbox);
+        graph.load_bounding_box(&mut tile_mgr, bbox)?;
         Self::with_graph(segments_dir, profiles_dir, Arc::new(graph))
     }
 
@@ -139,6 +170,9 @@ impl ServerState {
     }
 
     pub fn get_profile(&self, name: &str) -> Result<Arc<Profile>, String> {
+        if !is_valid_profile_name(name) {
+            return Err(format!("Invalid profile name: {name}"));
+        }
         {
             let cache = self.cached_profiles.read().unwrap();
             if let Some(prof) = cache.get(name) {
@@ -196,6 +230,16 @@ async fn handle_profile_upload_with_id(
 }
 
 fn process_profile_upload(state: &ServerState, id: &str, body: &str) -> Response {
+    if !is_valid_profile_name(id) {
+        let err_json = serde_json::json!({
+            "error": format!("Invalid profile id: {id}"),
+        });
+        return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .header("Content-Type", "application/json")
+            .body(err_json.to_string().into())
+            .unwrap();
+    }
     let profile_id = format!("custom_{id}");
     if body.len() > MAX_CUSTOM_PROFILE_LEN {
         let err_json = serde_json::json!({
@@ -211,8 +255,18 @@ fn process_profile_upload(state: &ServerState, id: &str, body: &str) -> Response
 
     match Profile::parse(&profile_id, body, &state.lookups) {
         Ok(parsed) => {
+            let arc_prof = Arc::new(parsed);
+            let mut order = state.custom_profile_order.lock().unwrap();
             let mut cache = state.cached_profiles.write().unwrap();
-            cache.insert(profile_id.clone(), Arc::new(parsed));
+            if !cache.contains_key(&profile_id) {
+                while order.len() >= MAX_CUSTOM_PROFILES {
+                    if let Some(evict_id) = order.pop_front() {
+                        cache.remove(&evict_id);
+                    }
+                }
+                order.push_back(profile_id.clone());
+            }
+            cache.insert(profile_id.clone(), arc_prof);
             let ok_json = serde_json::json!({
                 "profileid": profile_id,
             });
@@ -327,24 +381,35 @@ async fn handle_brouter(
         (None, false)
     };
 
-    let options = RoutingOptions {
-        alternative_idx: alt_idx,
-        nogos: &nogos,
-        start_direction,
-        force_start_direction,
-        turn_instruction_mode,
-        direct_legs: &direct_legs,
-    };
+    let route_state = Arc::clone(&state);
+    let route_profile = Arc::clone(&profile);
+    let route_res = tokio::task::spawn_blocking(move || {
+        let options = RoutingOptions {
+            alternative_idx: alt_idx,
+            nogos: &nogos,
+            start_direction,
+            force_start_direction,
+            turn_instruction_mode,
+            direct_legs: &direct_legs,
+        };
+        route_state.router.route(RouteRequest {
+            graph: &*route_state.graph,
+            lookups: &route_state.lookups,
+            profile: &route_profile,
+            waypoints: &coords,
+            options,
+        })
+    })
+    .await;
 
-    match state.router.route(RouteRequest {
-        graph: &*state.graph,
-        lookups: &state.lookups,
-        profile: &profile,
-        waypoints: &coords,
-        options,
-    }) {
-        Ok(route) => format_route_response(&route, profile_name, format),
-        Err(e) => (StatusCode::NOT_FOUND, format!("Routing failed: {}", e)).into_response(),
+    match route_res {
+        Ok(Ok(route)) => format_route_response(&route, profile_name, format),
+        Ok(Err(e)) => (StatusCode::NOT_FOUND, format!("Routing failed: {}", e)).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Routing task failed: {e}"),
+        )
+            .into_response(),
     }
 }
 
@@ -353,6 +418,7 @@ fn format_route_response(
     profile_name: &str,
     format: &str,
 ) -> Response {
+    let safe_name = sanitize_filename(profile_name);
     if format.eq_ignore_ascii_case("gpx") {
         let gpx = route.to_gpx(profile_name);
         Response::builder()
@@ -360,7 +426,7 @@ fn format_route_response(
             .header("Content-Type", "application/gpx+xml")
             .header(
                 "Content-Disposition",
-                format!("attachment; filename=\"{profile_name}.gpx\""),
+                format!("attachment; filename=\"{safe_name}.gpx\""),
             )
             .body(gpx.into())
             .unwrap()
@@ -371,7 +437,7 @@ fn format_route_response(
             .header("Content-Type", "application/vnd.google-earth.kml+xml")
             .header(
                 "Content-Disposition",
-                format!("attachment; filename=\"{profile_name}.kml\""),
+                format!("attachment; filename=\"{safe_name}.kml\""),
             )
             .body(kml.into())
             .unwrap()

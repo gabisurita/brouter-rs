@@ -162,8 +162,13 @@ impl<'a> BitReader<'a> {
 
     pub fn decode_var_bits2(&mut self) -> i32 {
         let mut range = 0i32;
+        let mut steps = 0usize;
         while !self.decode_bit() {
+            if steps >= 30 {
+                return range;
+            }
             range = 2 * range + 1;
+            steps += 1;
         }
         range + self.decode_bounded(range)
     }
@@ -207,9 +212,15 @@ impl<'a> BitReader<'a> {
         self.decode_var_bits2()
     }
 
-    pub fn decode_bits(&mut self, count: i32) -> i32 {
-        if count == 0 {
+    pub fn decode_bits(&mut self, mut count: i32) -> i32 {
+        if count <= 0 {
             return 0;
+        }
+        count = count.min(31);
+        if count > 24 {
+            let low = self.decode_bits(16);
+            let high = self.decode_bits(count - 16);
+            return low | (high << 16);
         }
         self.fill_buffer();
         let mask = (0xffff_ffffu32 >> (32 - count)) as i32;
@@ -220,6 +231,10 @@ impl<'a> BitReader<'a> {
     }
 
     pub fn decode_bits_reverse(&mut self, mut count: i32) -> i32 {
+        if count <= 0 {
+            return 0;
+        }
+        count = count.min(31);
         self.fill_buffer();
         let tables = get_tables();
         let mut value = 0i32;
@@ -349,8 +364,13 @@ impl<'a> BitCoderContext<'a> {
 
     pub fn decode_var_bits2(&mut self) -> i32 {
         let mut range = 0i32;
+        let mut steps = 0usize;
         while !self.decode_bit() {
+            if steps >= 30 {
+                return range;
+            }
             range = 2 * range + 1;
+            steps += 1;
         }
         range + self.decode_bounded(range)
     }
@@ -405,9 +425,15 @@ impl<'a> BitCoderContext<'a> {
         self.decode_var_bits2()
     }
 
-    pub fn decode_bits(&mut self, count: i32) -> i32 {
-        if count == 0 {
+    pub fn decode_bits(&mut self, mut count: i32) -> i32 {
+        if count <= 0 {
             return 0;
+        }
+        count = count.min(31);
+        if count > 24 {
+            let low = self.decode_bits(16);
+            let high = self.decode_bits(count - 16);
+            return low | (high << 16);
         }
         self.fill_buffer();
         let mask = (0xffff_ffffu32 >> (32 - count)) as i32;
@@ -418,6 +444,10 @@ impl<'a> BitCoderContext<'a> {
     }
 
     pub fn decode_bits_reverse(&mut self, mut count: i32) -> i32 {
+        if count <= 0 {
+            return 0;
+        }
+        count = count.min(31);
         self.fill_buffer();
         let tables = get_tables();
         let mut value = 0i32;
@@ -478,6 +508,10 @@ impl<'a> BitCoderContext<'a> {
         ((self.idx << 3) + 8 - self.bits as isize) as i32
     }
 
+    pub fn is_past_eof(&self) -> bool {
+        self.get_reading_bit_position() > (self.ab.len() as i32).saturating_mul(8)
+    }
+
     pub fn set_reading_bit_position(&mut self, pos: i32) {
         self.idx = (pos >> 3) as isize;
         self.bits = ((self.idx << 3) + 8 - pos as isize) as i32;
@@ -525,8 +559,9 @@ impl<'a> StatCoderContext<'a> {
     }
 
     pub fn decode_noisy_number(&mut self, noisybits: i32) -> i32 {
-        let value = self.bit_coder.decode_bits(noisybits);
-        value | (self.bit_coder.decode_var_bits() << noisybits)
+        let nb = noisybits.clamp(0, 30);
+        let value = self.bit_coder.decode_bits(nb);
+        value | (self.bit_coder.decode_var_bits().wrapping_shl(nb as u32))
     }
 
     pub fn encode_noisy_diff(&mut self, mut value: i32, noisybits: i32) {
@@ -544,15 +579,16 @@ impl<'a> StatCoderContext<'a> {
     }
 
     pub fn decode_noisy_diff(&mut self, noisybits: i32) -> i32 {
+        let nb = noisybits.clamp(0, 30);
         let mut value = 0i32;
-        if noisybits > 0 {
-            value = self.bit_coder.decode_bits(noisybits) - (1 << (noisybits - 1));
+        if nb > 0 {
+            value = self.bit_coder.decode_bits(nb) - (1 << (nb - 1));
         }
-        let mut val2 = self.bit_coder.decode_var_bits() << noisybits;
+        let mut val2 = self.bit_coder.decode_var_bits().wrapping_shl(nb as u32);
         if val2 != 0 && self.bit_coder.decode_bit() {
             val2 = -val2;
         }
-        value + val2
+        value.wrapping_add(val2)
     }
 
     pub fn encode_predicted_value(&mut self, value: i32, predictor: i32) {
@@ -567,13 +603,13 @@ impl<'a> StatCoderContext<'a> {
 
     pub fn decode_predicted_value(&mut self, predictor: i32) -> i32 {
         let tables = get_tables();
-        let mut p = if predictor < 0 { -predictor } else { predictor };
+        let mut p = predictor.unsigned_abs();
         let mut noisybits = 0;
         while p > 1023 {
             noisybits += 1;
             p >>= 1;
         }
-        predictor + self.decode_noisy_diff(noisybits + tables.noisy_bits[p as usize])
+        predictor.wrapping_add(self.decode_noisy_diff(noisybits + tables.noisy_bits[p as usize]))
     }
 
     pub fn encode_sorted_array(
@@ -626,6 +662,9 @@ impl<'a> StatCoderContext<'a> {
         nextbitpos: i32,
         mut value: i32,
     ) {
+        if subsize == 0 || offset.saturating_add(subsize) > values.len() || nextbitpos > 30 {
+            return;
+        }
         if subsize == 1 {
             if nextbitpos >= 0 {
                 value |= self.bit_coder.decode_bits_reverse(nextbitpos + 1);
@@ -642,7 +681,7 @@ impl<'a> StatCoderContext<'a> {
             return;
         }
 
-        let size1 = self.bit_coder.decode_bounded(subsize as i32) as usize;
+        let size1 = (self.bit_coder.decode_bounded(subsize as i32).max(0) as usize).min(subsize);
         let size2 = subsize - size1;
 
         if size1 > 0 {

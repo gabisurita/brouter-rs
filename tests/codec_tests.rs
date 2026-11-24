@@ -124,3 +124,33 @@ fn test_sorted_array_encode_decode() {
         "Decoded sorted array did not match original"
     );
 }
+
+#[test]
+fn test_corrupt_bitstream_and_tag_coder_safety() {
+    use brouter_rs::rd5::codec::bit_coder::BitReader;
+    use brouter_rs::rd5::codec::tag_coder::TagValueCoder;
+
+    let zeros = [0u8; 8];
+    let mut reader = BitReader::new(&zeros);
+    let _ = reader.decode_var_bits2();
+
+    let mut zbuf = [0u8; 8];
+    let mut ctx = StatCoderContext::new(&mut zbuf);
+    let _ = ctx.bit_coder.decode_var_bits2();
+    let _ = ctx.decode_noisy_diff(35);
+    let _ = ctx.decode_noisy_number(35);
+    let _ = ctx.decode_predicted_value(i32::MIN);
+
+    let ones = [0xffu8; 8];
+    let mut r_ones = BitReader::new(&ones);
+    assert_eq!(r_ones.decode_bits(0), 0);
+    assert_eq!(r_ones.decode_bits(-3), 0);
+    assert_eq!(r_ones.decode_bits(28), 0x0fff_ffff);
+
+    let mut tree_ones = [0xffu8; 64];
+    let mut tree_ctx = StatCoderContext::new(&mut tree_ones);
+    assert!(
+        TagValueCoder::try_new(&mut tree_ctx, None).is_err(),
+        "Deep all-ones Huffman tree must return Err rather than recursing unboundedly"
+    );
+}
