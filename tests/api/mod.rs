@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 use crate::common::server::create_router;
-use crate::common::{get_test_app, repo_path, SHARED_STATE};
+use crate::common::{get_test_app, parse_fixture_data, repo_path, SHARED_STATE};
 
 #[tokio::test]
 async fn test_health_endpoint() {
@@ -159,8 +159,11 @@ async fn test_brouter_multi_waypoint_endpoint() {
     let dist: f64 = props["track-length"].as_str().unwrap().parse().unwrap();
     let cost: u32 = props["cost"].as_str().unwrap().parse().unwrap();
 
-    let dist_delta = (dist - 87900.0).abs() / 87900.0 * 100.0;
-    let cost_delta = (cost as f64 - 116249.0).abs() / 116249.0 * 100.0;
+    let fixture_path = repo_path("fixtures/brouter_de/richmond_oxford_multi_point_fastbike.json");
+    let (expected_dist, _, expected_cost, _, _) =
+        parse_fixture_data(&fixture_path).expect("Missing Richmond -> Oxford fixture");
+    let dist_delta = (dist - expected_dist).abs() / expected_dist * 100.0;
+    let cost_delta = (cost as f64 - expected_cost).abs() / expected_cost * 100.0;
 
     assert!(
         dist_delta <= 0.05,

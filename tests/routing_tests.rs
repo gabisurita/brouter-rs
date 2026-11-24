@@ -388,19 +388,19 @@ fn test_clapham_hackney_fastbike() {
     let _ = fs::write("target/routes/clapham_hackney_fastbike.geojson", &geojson);
 
     // Enforce exact parity against official BRouter baseline
-    let dist_diff = (route.total_distance_m - 13171.0).abs();
+    let dist_diff = (route.total_distance_m - 13174.0).abs();
     assert!(
         dist_diff <= 1.0,
         "Distance divergence > 1m: got {}",
         route.total_distance_m
     );
     assert_eq!(
-        route.total_cost, 21803,
+        route.total_cost, 21871,
         "Cost divergence from BRouter baseline"
     );
     assert_eq!(
         route.points.len(),
-        919,
+        918,
         "Point count divergence from BRouter baseline"
     );
 }
@@ -490,12 +490,12 @@ fn test_clapham_hackney_lowtraffic() {
         route.total_distance_m
     );
     assert_eq!(
-        route.total_cost, 24661,
+        route.total_cost, 24692,
         "Cost divergence from BRouter baseline"
     );
     assert_eq!(
         route.points.len(),
-        910,
+        911,
         "Point count divergence from BRouter baseline"
     );
 }
@@ -579,19 +579,19 @@ fn test_clapham_hackney_verylowtraffic() {
     );
 
     // Enforce exact parity against official BRouter baseline
-    let dist_diff = (route.total_distance_m - 14267.0).abs();
+    let dist_diff = (route.total_distance_m - 14394.0).abs();
     assert!(
         dist_diff <= 1.0,
         "Distance divergence > 1m: got {}",
         route.total_distance_m
     );
     assert_eq!(
-        route.total_cost, 25075,
+        route.total_cost, 25097,
         "Cost divergence from BRouter baseline"
     );
     assert_eq!(
         route.points.len(),
-        885,
+        913,
         "Point count divergence from BRouter baseline"
     );
 }

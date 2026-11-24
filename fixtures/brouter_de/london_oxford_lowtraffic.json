@@ -10,8 +10,8 @@
         "filtered ascend": "482",
         "plain-ascend": "58",
         "total-time": "18912",
-        "total-energy": "1874394",
-        "cost": "146904",
+        "total-energy": "1874434",
+        "cost": "146979",
         "messages": [
           [
             "Longitude",
@@ -389,13 +389,28 @@
             "12598"
           ],
           [
+            "-137264",
+            "51505415",
+            "8",
+            "15",
+            "2700",
+            "0",
+            "3",
+            "0",
+            "0",
+            "highway=primary surface=asphalt estimated_traffic_class=6 oneway=yes",
+            "highway=give_way direction=forward",
+            "128",
+            "12824"
+          ],
+          [
             "-137294",
             "51505372",
             "8",
-            "20",
+            "5",
             "2700",
             "0",
-            "8",
+            "5",
             "0",
             "0",
             "highway=primary surface=asphalt estimated_traffic_class=6 oneway=yes",
@@ -6842,46 +6857,46 @@
             "-877291",
             "51613586",
             "81",
-            "2767",
+            "2764",
             "1000",
-            "555",
-            "86",
+            "557",
+            "55",
             "0",
             "0",
             "highway=tertiary estimated_traffic_class=2 lcn=yes",
             "",
             "12375",
-            "1232628"
+            "1232611"
           ],
           [
             "-880712",
             "51612923",
             "82",
-            "258",
+            "255",
             "1000",
             "0",
-            "12",
+            "6",
             "0",
             "0",
             "highway=tertiary surface=asphalt estimated_traffic_class=2 smoothness=excellent lcn=yes",
             "",
-            "12409",
-            "1236033"
+            "12408",
+            "1235992"
           ],
           [
-            "-883238",
-            "51612292",
+            "-883242",
+            "51612291",
             "86",
-            "191",
+            "190",
             "1000",
             "0",
-            "12",
+            "10",
             "0",
             "0",
             "highway=tertiary surface=asphalt estimated_traffic_class=2 smoothness=excellent",
             "",
-            "12459",
-            "1241029"
+            "12457",
+            "1240900"
           ],
           [
             "-883357",
@@ -6895,8 +6910,8 @@
             "0",
             "highway=unclassified surface=asphalt smoothness=excellent",
             "",
-            "12460",
-            "1241187"
+            "12459",
+            "1241057"
           ],
           [
             "-892746",
@@ -6905,13 +6920,13 @@
             "745",
             "1100",
             "0",
-            "23",
+            "20",
             "0",
             "0",
             "highway=unclassified",
             "",
-            "12571",
-            "1252280"
+            "12570",
+            "1252145"
           ],
           [
             "-894735",
@@ -6925,8 +6940,8 @@
             "0",
             "highway=unclassified surface=asphalt smoothness=excellent",
             "",
-            "12605",
-            "1255643"
+            "12604",
+            "1255508"
           ],
           [
             "-921814",
@@ -6940,8 +6955,8 @@
             "0",
             "highway=unclassified",
             "",
-            "13182",
-            "1313378"
+            "13181",
+            "1313243"
           ],
           [
             "-939860",
@@ -6955,8 +6970,8 @@
             "0",
             "highway=unclassified surface=asphalt smoothness=excellent",
             "",
-            "14092",
-            "1404344"
+            "14090",
+            "1404209"
           ],
           [
             "-940345",
@@ -6970,8 +6985,8 @@
             "0",
             "highway=unclassified",
             "",
-            "14102",
-            "1405373"
+            "14101",
+            "1405238"
           ],
           [
             "-948992",
@@ -6985,8 +7000,8 @@
             "0",
             "reversedirection=yes highway=tertiary estimated_traffic_class=1",
             "",
-            "14312",
-            "1426422"
+            "14311",
+            "1426287"
           ],
           [
             "-951597",
@@ -7000,8 +7015,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 smoothness=excellent",
             "",
-            "14359",
-            "1431111"
+            "14358",
+            "1430976"
           ],
           [
             "-968844",
@@ -7015,8 +7030,8 @@
             "0",
             "reversedirection=yes highway=tertiary estimated_traffic_class=1",
             "",
-            "14667",
-            "1461835"
+            "14665",
+            "1461700"
           ],
           [
             "-969316",
@@ -7030,8 +7045,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 smoothness=excellent cycleway:both=no route_bicycle_rcn=yes",
             "",
-            "14693",
-            "1464466"
+            "14691",
+            "1464331"
           ],
           [
             "-969706",
@@ -7045,8 +7060,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 smoothness=good cycleway:both=no",
             "",
-            "14700",
-            "1465183"
+            "14699",
+            "1465048"
           ],
           [
             "-969819",
@@ -7060,8 +7075,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 cycleway:both=no",
             "",
-            "14703",
-            "1465501"
+            "14702",
+            "1465366"
           ],
           [
             "-975619",
@@ -7075,8 +7090,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 smoothness=good cycleway:both=no",
             "",
-            "14771",
-            "1472294"
+            "14770",
+            "1472159"
           ],
           [
             "-990701",
@@ -7090,8 +7105,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 cycleway:both=no",
             "",
-            "14868",
-            "1473912"
+            "14867",
+            "1473777"
           ],
           [
             "-991913",
@@ -7105,8 +7120,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 smoothness=excellent cycleway:both=no",
             "crossing=unknown",
-            "14875",
-            "1473912"
+            "14874",
+            "1473777"
           ],
           [
             "-992106",
@@ -7120,8 +7135,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 smoothness=excellent cycleway:both=no",
             "",
-            "14876",
-            "1473912"
+            "14875",
+            "1473777"
           ],
           [
             "-1002293",
@@ -7135,8 +7150,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=1 cycleway:both=no",
             "",
-            "14959",
-            "1479487"
+            "14957",
+            "1479352"
           ],
           [
             "-1005650",
@@ -7150,8 +7165,8 @@
             "0",
             "highway=tertiary surface=asphalt estimated_traffic_class=1 oneway=yes",
             "estimated_crossing_class=1",
-            "15001",
-            "1483772"
+            "15000",
+            "1483638"
           ],
           [
             "-1005760",
@@ -7165,8 +7180,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15003",
-            "1483941"
+            "15002",
+            "1483806"
           ],
           [
             "-1006639",
@@ -7180,8 +7195,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "",
-            "15012",
-            "1484815"
+            "15011",
+            "1484681"
           ],
           [
             "-1006856",
@@ -7195,8 +7210,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15014",
-            "1485052"
+            "15013",
+            "1484917"
           ],
           [
             "-1007494",
@@ -7210,8 +7225,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15021",
-            "1485692"
+            "15019",
+            "1485558"
           ],
           [
             "-1007581",
@@ -7225,8 +7240,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15022",
-            "1485782"
+            "15020",
+            "1485648"
           ],
           [
             "-1007681",
@@ -7240,8 +7255,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15023",
-            "1485887"
+            "15021",
+            "1485753"
           ],
           [
             "-1008129",
@@ -7255,8 +7270,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15027",
-            "1486330"
+            "15026",
+            "1486196"
           ],
           [
             "-1008501",
@@ -7270,8 +7285,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15031",
-            "1486717"
+            "15030",
+            "1486582"
           ],
           [
             "-1008967",
@@ -7285,8 +7300,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15035",
-            "1487165"
+            "15034",
+            "1487031"
           ],
           [
             "-1009435",
@@ -7300,8 +7315,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15040",
-            "1487639"
+            "15039",
+            "1487504"
           ],
           [
             "-1009846",
@@ -7315,8 +7330,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15045",
-            "1488085"
+            "15043",
+            "1487951"
           ],
           [
             "-1009906",
@@ -7330,8 +7345,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15046",
-            "1488198"
+            "15044",
+            "1488063"
           ],
           [
             "-1010902",
@@ -7345,8 +7360,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15058",
-            "1489429"
+            "15057",
+            "1489294"
           ],
           [
             "-1011184",
@@ -7360,8 +7375,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15061",
-            "1489774"
+            "15060",
+            "1489639"
           ],
           [
             "-1011683",
@@ -7375,8 +7390,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15067",
-            "1490343"
+            "15066",
+            "1490209"
           ],
           [
             "-1012147",
@@ -7390,8 +7405,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15073",
-            "1490960"
+            "15072",
+            "1490826"
           ],
           [
             "-1013080",
@@ -7405,8 +7420,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15086",
-            "1492246"
+            "15085",
+            "1492112"
           ],
           [
             "-1013209",
@@ -7420,8 +7435,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15088",
-            "1492437"
+            "15087",
+            "1492303"
           ],
           [
             "-1013927",
@@ -7435,8 +7450,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "",
-            "15099",
-            "1493576"
+            "15098",
+            "1493442"
           ],
           [
             "-1014165",
@@ -7450,8 +7465,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2 oneway=yes junction=roundabout",
             "",
-            "15104",
-            "1494002"
+            "15102",
+            "1493867"
           ],
           [
             "-1016296",
@@ -7465,8 +7480,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15132",
-            "1496868"
+            "15131",
+            "1496734"
           ],
           [
             "-1019323",
@@ -7480,8 +7495,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15167",
-            "1500375"
+            "15166",
+            "1500240"
           ],
           [
             "-1021022",
@@ -7495,8 +7510,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15184",
-            "1502066"
+            "15183",
+            "1501931"
           ],
           [
             "-1025546",
@@ -7510,8 +7525,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15227",
-            "1506328"
+            "15226",
+            "1506193"
           ],
           [
             "-1029691",
@@ -7525,8 +7540,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15271",
-            "1510700"
+            "15269",
+            "1510566"
           ],
           [
             "-1029741",
@@ -7540,8 +7555,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15271",
-            "1510777"
+            "15270",
+            "1510642"
           ],
           [
             "-1031110",
@@ -7555,8 +7570,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15289",
-            "1512555"
+            "15288",
+            "1512420"
           ],
           [
             "-1032754",
@@ -7570,8 +7585,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15306",
-            "1514196"
+            "15304",
+            "1514062"
           ],
           [
             "-1035988",
@@ -7585,8 +7600,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15336",
-            "1517271"
+            "15335",
+            "1517136"
           ],
           [
             "-1036527",
@@ -7600,8 +7615,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15342",
-            "1517806"
+            "15340",
+            "1517672"
           ],
           [
             "-1037105",
@@ -7615,8 +7630,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15347",
-            "1518382"
+            "15346",
+            "1518247"
           ],
           [
             "-1037767",
@@ -7630,8 +7645,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15354",
-            "1519027"
+            "15353",
+            "1518893"
           ],
           [
             "-1039881",
@@ -7645,8 +7660,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15376",
-            "1521281"
+            "15375",
+            "1521147"
           ],
           [
             "-1040177",
@@ -7660,8 +7675,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15380",
-            "1521599"
+            "15378",
+            "1521464"
           ],
           [
             "-1041434",
@@ -7675,8 +7690,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "15394",
-            "1523015"
+            "15392",
+            "1522880"
           ],
           [
             "-1047352",
@@ -7690,8 +7705,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15531",
-            "1536703"
+            "15529",
+            "1536569"
           ],
           [
             "-1047895",
@@ -7705,8 +7720,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15540",
-            "1537639"
+            "15539",
+            "1537505"
           ],
           [
             "-1060648",
@@ -7720,8 +7735,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=3",
             "estimated_crossing_class=2",
-            "15691",
-            "1552764"
+            "15690",
+            "1552630"
           ],
           [
             "-1060881",
@@ -7735,8 +7750,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=3",
             "estimated_crossing_class=2",
-            "15695",
-            "1553127"
+            "15694",
+            "1552992"
           ],
           [
             "-1069303",
@@ -7750,8 +7765,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=3",
             "",
-            "15809",
-            "1564586"
+            "15808",
+            "1564452"
           ],
           [
             "-1069740",
@@ -7765,8 +7780,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2 oneway=yes",
             "",
-            "15814",
-            "1565056"
+            "15813",
+            "1564922"
           ],
           [
             "-1070040",
@@ -7780,8 +7795,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2 oneway=yes junction=roundabout",
             "",
-            "15819",
-            "1565512"
+            "15817",
+            "1565378"
           ],
           [
             "-1070198",
@@ -7795,8 +7810,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=2 oneway=yes",
             "",
-            "15822",
-            "1565864"
+            "15821",
+            "1565729"
           ],
           [
             "-1070743",
@@ -7810,8 +7825,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15829",
-            "1566580"
+            "15828",
+            "1566445"
           ],
           [
             "-1070833",
@@ -7825,8 +7840,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15830",
-            "1566686"
+            "15829",
+            "1566551"
           ],
           [
             "-1071425",
@@ -7840,8 +7855,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "highway=crossing estimated_crossing_class=2 crossing=unmarked kerb=flush",
-            "15837",
-            "1567376"
+            "15836",
+            "1567242"
           ],
           [
             "-1071639",
@@ -7855,8 +7870,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15840",
-            "1567643"
+            "15839",
+            "1567508"
           ],
           [
             "-1071904",
@@ -7870,8 +7885,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15843",
-            "1567975"
+            "15842",
+            "1567841"
           ],
           [
             "-1071939",
@@ -7885,8 +7900,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15844",
-            "1568021"
+            "15843",
+            "1567887"
           ],
           [
             "-1074476",
@@ -7900,8 +7915,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15874",
-            "1570996"
+            "15872",
+            "1570861"
           ],
           [
             "-1074613",
@@ -7915,8 +7930,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "15875",
-            "1571183"
+            "15874",
+            "1571048"
           ],
           [
             "-1074854",
@@ -7930,8 +7945,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2",
             "",
-            "15879",
-            "1571523"
+            "15878",
+            "1571388"
           ],
           [
             "-1087770",
@@ -7945,8 +7960,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2 cycleway:both=no",
             "estimated_crossing_class=2",
-            "16026",
-            "1586206"
+            "16024",
+            "1586071"
           ],
           [
             "-1089708",
@@ -7960,8 +7975,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2 cycleway:both=no",
             "estimated_crossing_class=2",
-            "16045",
-            "1588131"
+            "16044",
+            "1587997"
           ],
           [
             "-1099437",
@@ -7975,8 +7990,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=2 cycleway:both=no",
             "estimated_crossing_class=1",
-            "16163",
-            "1599946"
+            "16162",
+            "1599811"
           ],
           [
             "-1103022",
@@ -7990,8 +8005,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16274",
-            "1610994"
+            "16272",
+            "1610860"
           ],
           [
             "-1103404",
@@ -8005,8 +8020,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16279",
-            "1611586"
+            "16278",
+            "1611452"
           ],
           [
             "-1103434",
@@ -8020,8 +8035,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16280",
-            "1611620"
+            "16278",
+            "1611486"
           ],
           [
             "-1103779",
@@ -8035,8 +8050,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16284",
-            "1612079"
+            "16283",
+            "1611944"
           ],
           [
             "-1105217",
@@ -8050,8 +8065,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16302",
-            "1613821"
+            "16300",
+            "1613686"
           ],
           [
             "-1113368",
@@ -8065,8 +8080,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16392",
-            "1622795"
+            "16390",
+            "1622661"
           ],
           [
             "-1119442",
@@ -8080,8 +8095,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16465",
-            "1630184"
+            "16464",
+            "1630049"
           ],
           [
             "-1123072",
@@ -8095,8 +8110,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16503",
-            "1633947"
+            "16502",
+            "1633812"
           ],
           [
             "-1123715",
@@ -8110,8 +8125,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16509",
-            "1634587"
+            "16508",
+            "1634453"
           ],
           [
             "-1124000",
@@ -8125,8 +8140,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16512",
-            "1634871"
+            "16511",
+            "1634736"
           ],
           [
             "-1127553",
@@ -8140,8 +8155,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "highway=mini_roundabout estimated_crossing_class=1 direction=unknown",
-            "16546",
-            "1638289"
+            "16545",
+            "1638155"
           ],
           [
             "-1127986",
@@ -8155,8 +8170,8 @@
             "0",
             "reversedirection=yes highway=primary estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16551",
-            "1638732"
+            "16550",
+            "1638597"
           ],
           [
             "-1128039",
@@ -8170,8 +8185,8 @@
             "0",
             "reversedirection=yes highway=primary estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16551",
-            "1638782"
+            "16550",
+            "1638648"
           ],
           [
             "-1129215",
@@ -8185,8 +8200,8 @@
             "0",
             "reversedirection=yes highway=primary surface=asphalt estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16565",
-            "1640164"
+            "16564",
+            "1640029"
           ],
           [
             "-1129567",
@@ -8200,8 +8215,8 @@
             "0",
             "reversedirection=yes highway=primary surface=asphalt estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16570",
-            "1640615"
+            "16568",
+            "1640480"
           ],
           [
             "-1129760",
@@ -8215,8 +8230,8 @@
             "0",
             "reversedirection=yes highway=primary surface=asphalt estimated_traffic_class=3",
             "highway=crossing crossing=traffic_signals",
-            "16572",
-            "1640864"
+            "16571",
+            "1640729"
           ],
           [
             "-1129965",
@@ -8230,8 +8245,8 @@
             "0",
             "reversedirection=yes highway=primary surface=asphalt estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16574",
-            "1641096"
+            "16573",
+            "1640962"
           ],
           [
             "-1130181",
@@ -8245,8 +8260,8 @@
             "0",
             "reversedirection=yes highway=primary surface=asphalt estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16578",
-            "1641420"
+            "16576",
+            "1641285"
           ],
           [
             "-1130336",
@@ -8260,8 +8275,8 @@
             "0",
             "reversedirection=yes highway=primary surface=asphalt estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16581",
-            "1641775"
+            "16580",
+            "1641640"
           ],
           [
             "-1130740",
@@ -8275,8 +8290,8 @@
             "0",
             "reversedirection=yes highway=primary surface=asphalt estimated_traffic_class=3",
             "",
-            "16591",
-            "1642758"
+            "16590",
+            "1642623"
           ],
           [
             "-1130912",
@@ -8290,8 +8305,8 @@
             "0",
             "reversedirection=yes highway=primary estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16595",
-            "1643193"
+            "16594",
+            "1643059"
           ],
           [
             "-1131124",
@@ -8305,8 +8320,8 @@
             "0",
             "reversedirection=yes highway=primary estimated_traffic_class=3",
             "estimated_crossing_class=1",
-            "16599",
-            "1643580"
+            "16598",
+            "1643446"
           ],
           [
             "-1131418",
@@ -8320,8 +8335,8 @@
             "0",
             "reversedirection=yes highway=primary estimated_traffic_class=3",
             "",
-            "16603",
-            "1643982"
+            "16602",
+            "1643848"
           ],
           [
             "-1132291",
@@ -8335,8 +8350,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16614",
-            "1645001"
+            "16612",
+            "1644867"
           ],
           [
             "-1137528",
@@ -8350,8 +8365,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16672",
-            "1650870"
+            "16671",
+            "1650736"
           ],
           [
             "-1142540",
@@ -8365,8 +8380,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16748",
-            "1658469"
+            "16747",
+            "1658334"
           ],
           [
             "-1143656",
@@ -8380,8 +8395,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16802",
-            "1663838"
+            "16801",
+            "1663703"
           ],
           [
             "-1144869",
@@ -8395,8 +8410,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16881",
-            "1671735"
+            "16879",
+            "1671600"
           ],
           [
             "-1145022",
@@ -8410,8 +8425,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16887",
-            "1672334"
+            "16885",
+            "1672200"
           ],
           [
             "-1145702",
@@ -8425,8 +8440,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "16917",
-            "1675367"
+            "16916",
+            "1675233"
           ],
           [
             "-1148748",
@@ -8440,8 +8455,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=1",
-            "17071",
-            "1690719"
+            "17069",
+            "1690585"
           ],
           [
             "-1149138",
@@ -8455,8 +8470,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17196",
-            "1703266"
+            "17195",
+            "1703132"
           ],
           [
             "-1153557",
@@ -8470,8 +8485,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17288",
-            "1712426"
+            "17286",
+            "1712292"
           ],
           [
             "-1153740",
@@ -8485,8 +8500,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17291",
-            "1712750"
+            "17290",
+            "1712616"
           ],
           [
             "-1154436",
@@ -8500,8 +8515,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17301",
-            "1713811"
+            "17300",
+            "1713677"
           ],
           [
             "-1155157",
@@ -8515,8 +8530,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17311",
-            "1714756"
+            "17310",
+            "1714622"
           ],
           [
             "-1166069",
@@ -8530,8 +8545,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17459",
-            "1729550"
+            "17458",
+            "1729415"
           ],
           [
             "-1168870",
@@ -8545,8 +8560,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17499",
-            "1733524"
+            "17497",
+            "1733390"
           ],
           [
             "-1173407",
@@ -8560,8 +8575,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=2",
             "estimated_crossing_class=2",
-            "17575",
-            "1741136"
+            "17573",
+            "1741002"
           ],
           [
             "-1173449",
@@ -8575,8 +8590,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "estimated_crossing_class=2",
-            "17576",
-            "1741227"
+            "17574",
+            "1741092"
           ],
           [
             "-1176336",
@@ -8590,8 +8605,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "estimated_crossing_class=2",
-            "17630",
-            "1746711"
+            "17629",
+            "1746576"
           ],
           [
             "-1176855",
@@ -8605,8 +8620,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "estimated_crossing_class=2",
-            "17643",
-            "1748005"
+            "17642",
+            "1747870"
           ],
           [
             "-1177309",
@@ -8620,8 +8635,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "estimated_crossing_class=2",
-            "17660",
-            "1749628"
+            "17658",
+            "1749494"
           ],
           [
             "-1181377",
@@ -8635,8 +8650,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "estimated_crossing_class=3",
-            "17725",
-            "1756144"
+            "17723",
+            "1756010"
           ],
           [
             "-1182766",
@@ -8650,8 +8665,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "estimated_crossing_class=3",
-            "17749",
-            "1758541"
+            "17747",
+            "1758407"
           ],
           [
             "-1182803",
@@ -8665,8 +8680,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "estimated_crossing_class=3",
-            "17749",
-            "1758607"
+            "17748",
+            "1758473"
           ],
           [
             "-1183449",
@@ -8680,8 +8695,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=3",
             "",
-            "17760",
-            "1759682"
+            "17759",
+            "1759547"
           ],
           [
             "-1184374",
@@ -8695,8 +8710,8 @@
             "0",
             "highway=secondary estimated_traffic_class=4 oneway=yes",
             "",
-            "17773",
-            "1761009"
+            "17772",
+            "1760875"
           ],
           [
             "-1184839",
@@ -8710,8 +8725,8 @@
             "0",
             "highway=secondary estimated_traffic_class=4 oneway=yes junction=roundabout",
             "",
-            "17780",
-            "1761676"
+            "17779",
+            "1761542"
           ],
           [
             "-1184822",
@@ -8725,8 +8740,8 @@
             "0",
             "highway=secondary estimated_traffic_class=4 cycleway:both=no oneway=yes junction=roundabout",
             "",
-            "17783",
-            "1761950"
+            "17782",
+            "1761816"
           ],
           [
             "-1184921",
@@ -8740,8 +8755,8 @@
             "0",
             "highway=secondary estimated_traffic_class=4 cycleway:both=no oneway=yes",
             "",
-            "17792",
-            "1762824"
+            "17790",
+            "1762690"
           ],
           [
             "-1185047",
@@ -8755,8 +8770,8 @@
             "0",
             "highway=secondary estimated_traffic_class=4 cycleway:both=no oneway=no",
             "estimated_crossing_class=3",
-            "17795",
-            "1763123"
+            "17793",
+            "1762989"
           ],
           [
             "-1185485",
@@ -8770,8 +8785,8 @@
             "0",
             "highway=secondary estimated_traffic_class=4 cycleway:both=no oneway=no",
             "",
-            "17804",
-            "1764026"
+            "17802",
+            "1763892"
           ],
           [
             "-1185887",
@@ -8785,8 +8800,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=4",
             "estimated_crossing_class=4",
-            "17813",
-            "1764950"
+            "17812",
+            "1764815"
           ],
           [
             "-1186006",
@@ -8800,8 +8815,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=4",
             "estimated_crossing_class=4",
-            "17815",
-            "1765171"
+            "17814",
+            "1765036"
           ],
           [
             "-1187257",
@@ -8815,8 +8830,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=4",
             "estimated_crossing_class=4",
-            "17839",
-            "1767532"
+            "17837",
+            "1767398"
           ],
           [
             "-1189991",
@@ -8830,8 +8845,8 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=4",
             "estimated_crossing_class=3",
-            "17879",
-            "1771603"
+            "17876",
+            "1771308"
           ],
           [
             "-1190599",
@@ -8845,14 +8860,14 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=4",
             "estimated_crossing_class=3",
-            "17888",
-            "1772504"
+            "17886",
+            "1772291"
           ],
           [
-            "-1190884",
-            "51724985",
-            "66",
-            "22",
+            "-1192058",
+            "51725297",
+            "68",
+            "111",
             "1700",
             "0",
             "0",
@@ -8860,14 +8875,44 @@
             "0",
             "reversedirection=yes highway=secondary estimated_traffic_class=4",
             "",
-            "17892",
-            "1772869"
+            "17909",
+            "1774525"
           ],
           [
-            "-1192352",
-            "51725310",
+            "-1192211",
+            "51725295",
             "68",
-            "107",
+            "11",
+            "1400",
+            "0",
+            "5",
+            "0",
+            "0",
+            "highway=secondary surface=asphalt estimated_traffic_class=4 oneway=yes cycleway:left=lane",
+            "direction=forward",
+            "17911",
+            "1774749"
+          ],
+          [
+            "-1192277",
+            "51725309",
+            "68",
+            "5",
+            "1400",
+            "0",
+            "5",
+            "20",
+            "0",
+            "highway=secondary surface=asphalt estimated_traffic_class=4 oneway=yes cycleway:left=lane",
+            "highway=traffic_signals traffic_signals:direction=forward traffic_signals=signal",
+            "17912",
+            "1774849"
+          ],
+          [
+            "-1192344",
+            "51725323",
+            "68",
+            "5",
             "1400",
             "0",
             "0",
@@ -8875,177 +8920,267 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=4 oneway=yes cycleway:left=lane",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
-            "17914",
-            "1775015"
+            "17913",
+            "1774949"
           ],
           [
-            "-1192571",
+            "-1192556",
             "51725369",
             "68",
             "16",
             "1400",
             "0",
             "0",
-            "20",
+            "0",
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=4 oneway=yes cycleway:left=lane",
-            "highway=traffic_signals estimated_crossing_class=0",
-            "17917",
-            "1775323"
+            "estimated_crossing_class=0",
+            "17916",
+            "1775261"
           ],
           [
-            "-1193191",
-            "51725584",
-            "69",
-            "49",
-            "1400",
-            "0",
-            "0",
-            "20",
-            "0",
-            "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=traffic_signals estimated_crossing_class=0",
-            "17928",
-            "1776456"
-          ],
-          [
-            "-1193357",
-            "51725644",
-            "69",
-            "13",
-            "1400",
-            "0",
-            "0",
-            "20",
-            "0",
-            "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=traffic_signals estimated_crossing_class=0",
-            "17931",
-            "1776732"
-          ],
-          [
-            "-1193452",
-            "51725677",
-            "69",
-            "8",
-            "1400",
-            "0",
-            "0",
-            "0",
-            "0",
-            "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=crossing estimated_crossing_class=0 crossing=uncontrolled",
-            "17932",
-            "1776897"
-          ],
-          [
-            "-1194291",
-            "51725999",
-            "69",
+            "-1193003",
+            "51725528",
             "68",
+            "36",
             "1400",
             "0",
-            "0",
+            "1",
             "0",
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "estimated_crossing_class=4",
-            "17946",
-            "1778217"
+            "direction=forward",
+            "17924",
+            "1776073"
           ],
           [
-            "-1194589",
-            "51726128",
-            "69",
-            "26",
-            "1400",
-            "0",
-            "0",
-            "0",
-            "0",
-            "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=crossing estimated_crossing_class=4 crossing=unmarked",
-            "17950",
-            "1778694"
-          ],
-          [
-            "-1194872",
-            "51726273",
-            "69",
-            "25",
+            "-1193075",
+            "51725553",
+            "68",
+            "6",
             "1400",
             "0",
             "0",
             "20",
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=traffic_signals estimated_crossing_class=0",
-            "17955",
-            "1779172"
+            "highway=traffic_signals traffic_signals:direction=forward traffic_signals=signal",
+            "17925",
+            "1776200"
           ],
           [
-            "-1195070",
-            "51726374",
-            "69",
-            "18",
-            "1400",
-            "0",
-            "0",
-            "20",
-            "0",
-            "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
-            "17958",
-            "1779487"
-          ],
-          [
-            "-1195225",
-            "51726471",
+            "-1193260",
+            "51725618",
             "69",
             "15",
             "1400",
             "0",
             "0",
-            "20",
+            "0",
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=traffic_signals estimated_crossing_class=0",
-            "17961",
-            "1779766"
+            "estimated_crossing_class=0",
+            "17929",
+            "1776533"
           ],
           [
-            "-1195367",
-            "51726566",
+            "-1193434",
+            "51725685",
             "69",
             "14",
-            "1400",
+            "1100",
             "0",
             "0",
+            "20",
             "0",
-            "0",
-            "highway=secondary estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "highway=crossing estimated_crossing_class=0 crossing=uncontrolled",
-            "17964",
-            "1780039"
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
+            "17932",
+            "1776832"
           ],
           [
-            "-1195687",
-            "51726767",
+            "-1193573",
+            "51725775",
             "69",
-            "31",
+            "15",
+            "1100",
+            "0",
+            "26",
+            "0",
+            "0",
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "",
+            "17935",
+            "1777142"
+          ],
+          [
+            "-1194124",
+            "51725975",
+            "69",
+            "44",
+            "1100",
+            "0",
+            "27",
+            "0",
+            "0",
+            "reversedirection=yes highway=secondary",
+            "estimated_crossing_class=4",
+            "17943",
+            "1778005"
+          ],
+          [
+            "-1194371",
+            "51726083",
+            "69",
+            "21",
+            "1100",
+            "0",
+            "0",
+            "0",
+            "0",
+            "reversedirection=yes highway=secondary",
+            "",
+            "17947",
+            "1778399"
+          ],
+          [
+            "-1194471",
+            "51726093",
+            "69",
+            "7",
+            "1100",
+            "0",
+            "23",
+            "0",
+            "0",
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "direction=forward",
+            "17949",
+            "1778529"
+          ],
+          [
+            "-1194531",
+            "51726119",
+            "69",
+            "5",
+            "1100",
+            "0",
+            "0",
+            "20",
+            "0",
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "highway=traffic_signals traffic_signals:direction=forward traffic_signals=signal",
+            "17950",
+            "1778621"
+          ],
+          [
+            "-1194572",
+            "51726136",
+            "69",
+            "3",
+            "1100",
+            "0",
+            "0",
+            "20",
+            "0",
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "highway=crossing estimated_crossing_class=4 crossing=traffic_signals",
+            "17950",
+            "1778676"
+          ],
+          [
+            "-1194870",
+            "51726274",
+            "69",
+            "26",
+            "1100",
+            "0",
+            "0",
+            "20",
+            "0",
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "highway=traffic_signals estimated_crossing_class=0",
+            "17955",
+            "1779176"
+          ],
+          [
+            "-1195062",
+            "51726378",
+            "69",
+            "18",
+            "1100",
+            "0",
+            "0",
+            "20",
+            "0",
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
+            "17958",
+            "1779493"
+          ],
+          [
+            "-1195209",
+            "51726475",
+            "69",
+            "15",
+            "1100",
+            "0",
+            "0",
+            "0",
+            "0",
+            "highway=secondary surface=asphalt oneway=yes cycleway:left=lane",
+            "estimated_crossing_class=0",
+            "17961",
+            "1779772"
+          ],
+          [
+            "-1195365",
+            "51726568",
+            "69",
+            "15",
+            "1100",
+            "0",
+            "0",
+            "20",
+            "0",
+            "highway=secondary oneway=yes cycleway:left=lane",
+            "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
+            "17964",
+            "1780066"
+          ],
+          [
+            "-1195437",
+            "51726653",
+            "69",
+            "11",
+            "1100",
+            "0",
+            "7",
+            "0",
+            "0",
+            "highway=secondary oneway=yes cycleway:left=lane",
+            "",
+            "17966",
+            "1780287"
+          ],
+          [
+            "-1195647",
+            "51726787",
+            "69",
+            "21",
             "1400",
             "0",
+            "8",
             "0",
             "0",
-            "0",
-            "highway=secondary estimated_traffic_class=5 oneway=yes cycleway:left=lane",
+            "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
             "17970",
-            "1780626"
+            "1780706"
           ],
           [
-            "-1195999",
-            "51726977",
+            "-1195970",
+            "51726992",
             "70",
             "32",
             "1400",
@@ -9053,31 +9188,16 @@
             "0",
             "0",
             "0",
-            "highway=secondary estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "estimated_crossing_class=2",
-            "17976",
-            "1781253"
-          ],
-          [
-            "-1196151",
-            "51727103",
-            "69",
-            "18",
-            "1400",
-            "0",
-            "0",
-            "0",
-            "0",
-            "highway=secondary estimated_traffic_class=5 oneway=yes cycleway:left=lane",
-            "",
-            "17979",
-            "1781591"
+            "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
+            "highway=crossing",
+            "17977",
+            "1781358"
           ],
           [
             "-1196216",
             "51727154",
             "69",
-            "7",
+            "25",
             "1400",
             "0",
             "0",
@@ -9086,7 +9206,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
             "17981",
-            "1781721"
+            "1781814"
           ],
           [
             "-1196256",
@@ -9100,8 +9220,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
-            "17981",
-            "1781795"
+            "17982",
+            "1781887"
           ],
           [
             "-1196359",
@@ -9115,8 +9235,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
-            "17983",
-            "1781991"
+            "17984",
+            "1782078"
           ],
           [
             "-1196573",
@@ -9131,7 +9251,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
             "17988",
-            "1782431"
+            "1782511"
           ],
           [
             "-1196607",
@@ -9145,8 +9265,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
-            "17988",
-            "1782506"
+            "17989",
+            "1782585"
           ],
           [
             "-1196668",
@@ -9161,7 +9281,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
             "17990",
-            "1782618"
+            "1782695"
           ],
           [
             "-1196906",
@@ -9175,8 +9295,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
-            "17994",
-            "1783079"
+            "17995",
+            "1783150"
           ],
           [
             "-1197122",
@@ -9191,7 +9311,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "estimated_crossing_class=4",
             "17998",
-            "1783426"
+            "1783494"
           ],
           [
             "-1197671",
@@ -9205,8 +9325,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane cycleway:right=lane cycleway:left=lane",
             "",
-            "18005",
-            "1784167"
+            "18006",
+            "1784231"
           ],
           [
             "-1198056",
@@ -9221,7 +9341,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane",
             "estimated_crossing_class=4",
             "18010",
-            "1784650"
+            "1784712"
           ],
           [
             "-1198843",
@@ -9236,7 +9356,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=lane",
             "",
             "18023",
-            "1785948"
+            "1786007"
           ],
           [
             "-1199171",
@@ -9250,8 +9370,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=lane",
             "estimated_crossing_class=4",
-            "18027",
-            "1786407"
+            "18028",
+            "1786465"
           ],
           [
             "-1199509",
@@ -9266,7 +9386,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=lane",
             "estimated_crossing_class=4",
             "18032",
-            "1786839"
+            "1786896"
           ],
           [
             "-1200008",
@@ -9280,8 +9400,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=lane",
             "estimated_crossing_class=4",
-            "18038",
-            "1787503"
+            "18039",
+            "1787560"
           ],
           [
             "-1200190",
@@ -9296,7 +9416,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=lane",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
             "18041",
-            "1787749"
+            "1787805"
           ],
           [
             "-1200978",
@@ -9311,7 +9431,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:right=lane",
             "estimated_crossing_class=4",
             "18050",
-            "1788634"
+            "1788690"
           ],
           [
             "-1201525",
@@ -9325,8 +9445,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:right=unknown",
             "",
-            "18056",
-            "1789288"
+            "18057",
+            "1789344"
           ],
           [
             "-1201800",
@@ -9340,8 +9460,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=unknown",
             "highway=traffic_signals estimated_crossing_class=0 crossing=traffic_signals bicycle=yes",
-            "18059",
-            "1789605"
+            "18060",
+            "1789661"
           ],
           [
             "-1201996",
@@ -9355,8 +9475,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes",
             "",
-            "18062",
-            "1789862"
+            "18063",
+            "1789918"
           ],
           [
             "-1202067",
@@ -9370,8 +9490,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes junction=circular",
             "estimated_crossing_class=0",
-            "18063",
-            "1790008"
+            "18064",
+            "1790063"
           ],
           [
             "-1202367",
@@ -9386,7 +9506,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes junction=circular",
             "estimated_crossing_class=0",
             "18068",
-            "1790425"
+            "1790480"
           ],
           [
             "-1202452",
@@ -9401,7 +9521,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes junction=circular",
             "highway=traffic_signals",
             "18069",
-            "1790526"
+            "1790581"
           ],
           [
             "-1203077",
@@ -9415,8 +9535,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes junction=circular",
             "highway=traffic_signals",
-            "18077",
-            "1791413"
+            "18078",
+            "1791468"
           ],
           [
             "-1203144",
@@ -9430,8 +9550,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes junction=circular",
             "",
-            "18082",
-            "1791871"
+            "18083",
+            "1791926"
           ],
           [
             "-1203278",
@@ -9446,7 +9566,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=unknown",
             "highway=traffic_signals estimated_crossing_class=0 crossing=traffic_signals bicycle=yes",
             "18088",
-            "1792435"
+            "1792490"
           ],
           [
             "-1203548",
@@ -9461,7 +9581,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=unknown",
             "",
             "18098",
-            "1793441"
+            "1793496"
           ],
           [
             "-1203798",
@@ -9475,8 +9595,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=unknown",
             "estimated_crossing_class=4",
-            "18104",
-            "1794066"
+            "18105",
+            "1794121"
           ],
           [
             "-1204133",
@@ -9490,8 +9610,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=unknown",
             "estimated_crossing_class=4",
-            "18112",
-            "1794885"
+            "18113",
+            "1794940"
           ],
           [
             "-1204301",
@@ -9506,7 +9626,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=unknown",
             "highway=crossing estimated_crossing_class=4 crossing=unmarked",
             "18116",
-            "1795246"
+            "1795301"
           ],
           [
             "-1206156",
@@ -9520,8 +9640,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=unknown",
             "",
-            "18159",
-            "1799607"
+            "18160",
+            "1799662"
           ],
           [
             "-1206642",
@@ -9536,7 +9656,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=unknown",
             "",
             "18169",
-            "1800541"
+            "1800596"
           ],
           [
             "-1207089",
@@ -9550,8 +9670,8 @@
             "0",
             "highway=secondary estimated_traffic_class=5 junction=roundabout cycleway:left=unknown",
             "",
-            "18178",
-            "1801494"
+            "18179",
+            "1801549"
           ],
           [
             "-1207251",
@@ -9565,8 +9685,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=5 oneway=yes cycleway:left=unknown",
             "",
-            "18183",
-            "1801998"
+            "18184",
+            "1802053"
           ],
           [
             "-1207299",
@@ -9580,8 +9700,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=unknown",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals bicycle=yes kerb=flush",
-            "18184",
-            "1802093"
+            "18185",
+            "1802148"
           ],
           [
             "-1207343",
@@ -9595,8 +9715,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=unknown",
             "estimated_crossing_class=4",
-            "18185",
-            "1802187"
+            "18186",
+            "1802242"
           ],
           [
             "-1207730",
@@ -9611,7 +9731,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway=unknown",
             "estimated_crossing_class=4",
             "18194",
-            "1803065"
+            "1803120"
           ],
           [
             "-1208010",
@@ -9626,7 +9746,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=unknown",
             "estimated_crossing_class=4",
             "18200",
-            "1803659"
+            "1803714"
           ],
           [
             "-1208792",
@@ -9640,8 +9760,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=unknown",
             "estimated_crossing_class=4",
-            "18214",
-            "1805105"
+            "18215",
+            "1805160"
           ],
           [
             "-1209544",
@@ -9655,8 +9775,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=unknown",
             "highway=crossing estimated_crossing_class=4 crossing=uncontrolled bicycle=yes kerb=flush",
-            "18227",
-            "1806383"
+            "18228",
+            "1806438"
           ],
           [
             "-1209630",
@@ -9670,8 +9790,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=unknown",
             "estimated_crossing_class=4",
-            "18228",
-            "1806509"
+            "18229",
+            "1806564"
           ],
           [
             "-1210176",
@@ -9685,8 +9805,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=unknown",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
-            "18236",
-            "1807302"
+            "18237",
+            "1807357"
           ],
           [
             "-1210366",
@@ -9701,7 +9821,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:left=unknown",
             "highway=traffic_signals estimated_crossing_class=0",
             "18239",
-            "1807547"
+            "1807602"
           ],
           [
             "-1210599",
@@ -9716,7 +9836,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:both=no",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
             "18242",
-            "1807862"
+            "1807917"
           ],
           [
             "-1210800",
@@ -9730,8 +9850,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:both=no",
             "estimated_crossing_class=5",
-            "18245",
-            "1808178"
+            "18246",
+            "1808233"
           ],
           [
             "-1211311",
@@ -9746,7 +9866,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:both=no",
             "estimated_crossing_class=5",
             "18251",
-            "1808745"
+            "1808800"
           ],
           [
             "-1211858",
@@ -9760,8 +9880,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:both=no",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
-            "18256",
-            "1809270"
+            "18257",
+            "1809325"
           ],
           [
             "-1211983",
@@ -9775,8 +9895,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:both=no",
             "highway=traffic_signals",
-            "18257",
-            "1809390"
+            "18258",
+            "1809445"
           ],
           [
             "-1212148",
@@ -9791,11 +9911,11 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:both=no",
             "highway=traffic_signals",
             "18259",
-            "1809537"
+            "1809592"
           ],
           [
-            "-1212968",
-            "51734466",
+            "-1212973",
+            "51734454",
             "73",
             "60",
             "2000",
@@ -9804,28 +9924,28 @@
             "0",
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=5 cycleway:both=no",
-            "highway=crossing estimated_crossing_class=3",
-            "18265",
-            "1810212"
+            "highway=crossing estimated_crossing_class=3 crossing=unmarked",
+            "18266",
+            "1810267"
           ],
           [
-            "-1213161",
-            "51734540",
+            "-1213170",
+            "51734530",
             "72",
             "16",
             "1700",
             "0",
-            "0",
+            "2",
             "0",
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
-            "18267",
-            "1810398"
+            "18268",
+            "1810445"
           ],
           [
-            "-1213199",
-            "51734554",
+            "-1213211",
+            "51734544",
             "72",
             "3",
             "1700",
@@ -9836,22 +9956,22 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18268",
-            "1810432"
+            "1810480"
           ],
           [
             "-1213344",
             "51734589",
             "72",
-            "11",
+            "10",
             "1700",
             "0",
-            "1",
+            "0",
             "0",
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18269",
-            "1810561"
+            "1810597"
           ],
           [
             "-1214041",
@@ -9860,13 +9980,13 @@
             "50",
             "1700",
             "0",
-            "0",
+            "1",
             "0",
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18275",
-            "1811173"
+            "1811211"
           ],
           [
             "-1214865",
@@ -9880,8 +10000,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
-            "18282",
-            "1811895"
+            "18283",
+            "1811934"
           ],
           [
             "-1215409",
@@ -9896,7 +10016,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18287",
-            "1812351"
+            "1812390"
           ],
           [
             "-1215521",
@@ -9911,7 +10031,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18288",
-            "1812466"
+            "1812505"
           ],
           [
             "-1215714",
@@ -9926,7 +10046,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18290",
-            "1812645"
+            "1812685"
           ],
           [
             "-1215889",
@@ -9940,8 +10060,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
-            "18291",
-            "1812805"
+            "18292",
+            "1812845"
           ],
           [
             "-1216836",
@@ -9956,7 +10076,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18301",
-            "1813779"
+            "1813818"
           ],
           [
             "-1216918",
@@ -9970,8 +10090,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=0",
-            "18302",
-            "1813902"
+            "18303",
+            "1813942"
           ],
           [
             "-1217022",
@@ -9986,7 +10106,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "highway=crossing estimated_crossing_class=0 crossing=uncontrolled",
             "18304",
-            "1814052"
+            "1814091"
           ],
           [
             "-1217128",
@@ -10000,8 +10120,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=0",
-            "18305",
-            "1814212"
+            "18306",
+            "1814252"
           ],
           [
             "-1217544",
@@ -10016,7 +10136,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18311",
-            "1814743"
+            "1814783"
           ],
           [
             "-1218088",
@@ -10031,7 +10151,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18318",
-            "1815423"
+            "1815463"
           ],
           [
             "-1218246",
@@ -10046,7 +10166,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18320",
-            "1815638"
+            "1815678"
           ],
           [
             "-1218318",
@@ -10061,7 +10181,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18321",
-            "1815735"
+            "1815775"
           ],
           [
             "-1218662",
@@ -10076,7 +10196,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18325",
-            "1816149"
+            "1816189"
           ],
           [
             "-1219136",
@@ -10091,7 +10211,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
             "18331",
-            "1816780"
+            "1816820"
           ],
           [
             "-1219448",
@@ -10105,8 +10225,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=3",
-            "18335",
-            "1817198"
+            "18336",
+            "1817238"
           ],
           [
             "-1219642",
@@ -10120,8 +10240,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "direction=backward",
-            "18338",
-            "1817497"
+            "18339",
+            "1817537"
           ],
           [
             "-1219685",
@@ -10136,7 +10256,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
             "18339",
-            "1817557"
+            "1817597"
           ],
           [
             "-1219733",
@@ -10151,7 +10271,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "direction=forward",
             "18340",
-            "1817633"
+            "1817673"
           ],
           [
             "-1219933",
@@ -10166,7 +10286,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=no",
             "estimated_crossing_class=0",
             "18343",
-            "1817956"
+            "1817996"
           ],
           [
             "-1220084",
@@ -10181,7 +10301,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4",
             "estimated_crossing_class=0",
             "18346",
-            "1818222"
+            "1818262"
           ],
           [
             "-1220091",
@@ -10196,7 +10316,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4",
             "highway=crossing estimated_crossing_class=0 crossing=uncontrolled bicycle=yes",
             "18346",
-            "1818237"
+            "1818277"
           ],
           [
             "-1220118",
@@ -10210,8 +10330,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4",
             "highway=crossing estimated_crossing_class=0 crossing=uncontrolled",
-            "18346",
-            "1818285"
+            "18347",
+            "1818325"
           ],
           [
             "-1221539",
@@ -10226,7 +10346,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=3",
             "18367",
-            "1820362"
+            "1820402"
           ],
           [
             "-1221798",
@@ -10241,7 +10361,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=3",
             "18371",
-            "1820770"
+            "1820810"
           ],
           [
             "-1222038",
@@ -10256,7 +10376,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=3",
             "18375",
-            "1821137"
+            "1821177"
           ],
           [
             "-1222492",
@@ -10271,7 +10391,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=3",
             "18379",
-            "1821540"
+            "1821580"
           ],
           [
             "-1222583",
@@ -10286,7 +10406,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
             "18380",
-            "1821630"
+            "1821670"
           ],
           [
             "-1223929",
@@ -10300,8 +10420,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
-            "18395",
-            "1823219"
+            "18396",
+            "1823259"
           ],
           [
             "-1224021",
@@ -10316,7 +10436,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
             "18397",
-            "1823353"
+            "1823393"
           ],
           [
             "-1224388",
@@ -10330,8 +10450,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
-            "18403",
-            "1823985"
+            "18404",
+            "1824025"
           ],
           [
             "-1224651",
@@ -10346,7 +10466,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
             "18408",
-            "1824427"
+            "1824467"
           ],
           [
             "-1224811",
@@ -10360,8 +10480,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "highway=crossing estimated_crossing_class=1 crossing=uncontrolled",
-            "18410",
-            "1824715"
+            "18411",
+            "1824755"
           ],
           [
             "-1225031",
@@ -10375,8 +10495,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
-            "18414",
-            "1825104"
+            "18415",
+            "1825144"
           ],
           [
             "-1225287",
@@ -10391,7 +10511,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
             "18419",
-            "1825578"
+            "1825618"
           ],
           [
             "-1225692",
@@ -10406,7 +10526,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "highway=crossing estimated_crossing_class=1 crossing=uncontrolled surface=asphalt",
             "18427",
-            "1826380"
+            "1826420"
           ],
           [
             "-1225807",
@@ -10420,8 +10540,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
-            "18429",
-            "1826594"
+            "18430",
+            "1826634"
           ],
           [
             "-1226312",
@@ -10436,7 +10556,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "traffic_calming=island",
             "18441",
-            "1827760"
+            "1827800"
           ],
           [
             "-1226622",
@@ -10451,7 +10571,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "highway=crossing estimated_crossing_class=1 crossing=uncontrolled surface=asphalt",
             "18448",
-            "1828462"
+            "1828502"
           ],
           [
             "-1226755",
@@ -10466,7 +10586,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:both=lane",
             "estimated_crossing_class=2",
             "18451",
-            "1828739"
+            "1828779"
           ],
           [
             "-1226801",
@@ -10481,7 +10601,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane",
             "estimated_crossing_class=2",
             "18452",
-            "1828830"
+            "1828870"
           ],
           [
             "-1226915",
@@ -10496,7 +10616,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane",
             "highway=crossing estimated_crossing_class=1 crossing=uncontrolled",
             "18454",
-            "1829082"
+            "1829122"
           ],
           [
             "-1227571",
@@ -10510,8 +10630,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane",
             "estimated_crossing_class=2",
-            "18469",
-            "1830589"
+            "18470",
+            "1830629"
           ],
           [
             "-1228252",
@@ -10526,7 +10646,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=lane",
             "highway=crossing estimated_crossing_class=1 crossing=uncontrolled surface=asphalt",
             "18485",
-            "1832131"
+            "1832171"
           ],
           [
             "-1228416",
@@ -10541,7 +10661,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=shared_lane",
             "estimated_crossing_class=2",
             "18488",
-            "1832464"
+            "1832504"
           ],
           [
             "-1228571",
@@ -10555,8 +10675,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=1 crossing=uncontrolled traffic_calming=island",
-            "18491",
-            "1832787"
+            "18492",
+            "1832827"
           ],
           [
             "-1228743",
@@ -10571,7 +10691,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=shared_lane route_bicycle_ncn=yes",
             "",
             "18495",
-            "1833160"
+            "1833200"
           ],
           [
             "-1229087",
@@ -10585,8 +10705,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=unknown route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
-            "18502",
-            "1833884"
+            "18503",
+            "1833924"
           ],
           [
             "-1229134",
@@ -10600,8 +10720,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=unknown route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
-            "18503",
-            "1833994"
+            "18504",
+            "1834034"
           ],
           [
             "-1229339",
@@ -10615,8 +10735,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=unknown route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
-            "18508",
-            "1834522"
+            "18509",
+            "1834562"
           ],
           [
             "-1229481",
@@ -10630,8 +10750,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=unknown route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
-            "18513",
-            "1834988"
+            "18514",
+            "1835028"
           ],
           [
             "-1229605",
@@ -10646,7 +10766,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:left=unknown route_bicycle_ncn=yes",
             "",
             "18517",
-            "1835368"
+            "1835408"
           ],
           [
             "-1229640",
@@ -10661,7 +10781,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=lane cycleway:left=unknown route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
             "18518",
-            "1835450"
+            "1835490"
           ],
           [
             "-1229681",
@@ -10676,7 +10796,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=lane cycleway:left=unknown route_bicycle_ncn=yes",
             "",
             "18519",
-            "1835552"
+            "1835592"
           ],
           [
             "-1229710",
@@ -10690,8 +10810,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:left=unknown route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=1 crossing=unmarked",
-            "18519",
-            "1835613"
+            "18520",
+            "1835653"
           ],
           [
             "-1229836",
@@ -10706,7 +10826,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 cycleway:left=unknown route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
             "18522",
-            "1835872"
+            "1835912"
           ],
           [
             "-1229929",
@@ -10721,7 +10841,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=1 crossing=unmarked",
             "18524",
-            "1836029"
+            "1836069"
           ],
           [
             "-1230501",
@@ -10736,7 +10856,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
             "18534",
-            "1837080"
+            "1837120"
           ],
           [
             "-1230717",
@@ -10751,7 +10871,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
             "18538",
-            "1837479"
+            "1837519"
           ],
           [
             "-1231337",
@@ -10765,8 +10885,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
-            "18548",
-            "1838523"
+            "18549",
+            "1838563"
           ],
           [
             "-1231460",
@@ -10780,8 +10900,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "",
-            "18550",
-            "1838717"
+            "18551",
+            "1838757"
           ],
           [
             "-1231564",
@@ -10796,7 +10916,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=lane cycleway:left=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
             "18552",
-            "1838870"
+            "1838910"
           ],
           [
             "-1231638",
@@ -10811,7 +10931,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=lane cycleway:left=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=2",
             "18553",
-            "1838984"
+            "1839024"
           ],
           [
             "-1231926",
@@ -10825,8 +10945,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=lane cycleway:left=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=traffic_signals surface=asphalt",
-            "18558",
-            "1839488"
+            "18559",
+            "1839528"
           ],
           [
             "-1232860",
@@ -10840,8 +10960,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=uncontrolled kerb=flush",
-            "18575",
-            "1841203"
+            "18576",
+            "1841243"
           ],
           [
             "-1232949",
@@ -10856,7 +10976,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=0",
             "18577",
-            "1841340"
+            "1841380"
           ],
           [
             "-1233129",
@@ -10871,7 +10991,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18580",
-            "1841629"
+            "1841669"
           ],
           [
             "-1233654",
@@ -10886,7 +11006,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18588",
-            "1842429"
+            "1842469"
           ],
           [
             "-1234138",
@@ -10901,7 +11021,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
             "18595",
-            "1843129"
+            "1843169"
           ],
           [
             "-1234289",
@@ -10916,7 +11036,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18597",
-            "1843342"
+            "1843382"
           ],
           [
             "-1235027",
@@ -10931,7 +11051,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=2 crossing=unmarked",
             "18605",
-            "1844172"
+            "1844212"
           ],
           [
             "-1235201",
@@ -10946,7 +11066,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18607",
-            "1844382"
+            "1844422"
           ],
           [
             "-1235245",
@@ -10961,7 +11081,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18608",
-            "1844428"
+            "1844468"
           ],
           [
             "-1235269",
@@ -10976,7 +11096,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18608",
-            "1844458"
+            "1844498"
           ],
           [
             "-1235844",
@@ -10991,7 +11111,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
             "18615",
-            "1845139"
+            "1845179"
           ],
           [
             "-1236351",
@@ -11005,8 +11125,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
-            "18620",
-            "1845699"
+            "18621",
+            "1845739"
           ],
           [
             "-1236534",
@@ -11020,8 +11140,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
-            "18622",
-            "1845895"
+            "18623",
+            "1845935"
           ],
           [
             "-1237188",
@@ -11035,8 +11155,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=0",
-            "18629",
-            "1846596"
+            "18630",
+            "1846636"
           ],
           [
             "-1237333",
@@ -11051,7 +11171,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=uncontrolled",
             "18631",
-            "1846757"
+            "1846797"
           ],
           [
             "-1237495",
@@ -11066,7 +11186,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=0",
             "18633",
-            "1846951"
+            "1846991"
           ],
           [
             "-1237746",
@@ -11081,7 +11201,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18636",
-            "1847239"
+            "1847279"
           ],
           [
             "-1238210",
@@ -11096,7 +11216,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=shared_lane route_bicycle_ncn=yes",
             "",
             "18641",
-            "1847782"
+            "1847822"
           ],
           [
             "-1238536",
@@ -11111,7 +11231,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway=shared_lane oneway=yes route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=1",
             "18645",
-            "1848161"
+            "1848201"
           ],
           [
             "-1238592",
@@ -11126,7 +11246,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway=shared_lane oneway=yes route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=2 crossing=uncontrolled bicycle=yes",
             "18646",
-            "1848225"
+            "1848265"
           ],
           [
             "-1238641",
@@ -11141,7 +11261,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway=shared_lane oneway=yes route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=1 kerb=unknown",
             "18646",
-            "1848285"
+            "1848325"
           ],
           [
             "-1238816",
@@ -11155,8 +11275,8 @@
             "0",
             "highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway=shared_lane oneway=yes route_bicycle_ncn=yes",
             "",
-            "18648",
-            "1848491"
+            "18649",
+            "1848531"
           ],
           [
             "-1238868",
@@ -11171,7 +11291,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
             "18649",
-            "1848543"
+            "1848583"
           ],
           [
             "-1239489",
@@ -11186,7 +11306,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=shared_lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18655",
-            "1849172"
+            "1849212"
           ],
           [
             "-1239678",
@@ -11201,7 +11321,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=shared_lane cycleway:left=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18657",
-            "1849339"
+            "1849379"
           ],
           [
             "-1240489",
@@ -11216,7 +11336,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=shared_lane cycleway:left=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18664",
-            "1850037"
+            "1850077"
           ],
           [
             "-1240511",
@@ -11231,7 +11351,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=shared_lane cycleway:left=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18664",
-            "1850062"
+            "1850102"
           ],
           [
             "-1240664",
@@ -11245,8 +11365,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=shared_lane cycleway:left=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=traffic_signals",
-            "18665",
-            "1850201"
+            "18666",
+            "1850241"
           ],
           [
             "-1241483",
@@ -11260,8 +11380,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:right=shared_lane cycleway:left=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
-            "18672",
-            "1850923"
+            "18673",
+            "1850963"
           ],
           [
             "-1242089",
@@ -11275,8 +11395,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=uncontrolled",
-            "18678",
-            "1851497"
+            "18679",
+            "1851537"
           ],
           [
             "-1242904",
@@ -11291,7 +11411,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes estimated_crossing_class=3",
             "18687",
-            "1852342"
+            "1852382"
           ],
           [
             "-1243232",
@@ -11306,7 +11426,7 @@
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=0 crossing=uncontrolled",
             "18690",
-            "1852679"
+            "1852719"
           ],
           [
             "-1243758",
@@ -11320,8 +11440,8 @@
             "0",
             "reversedirection=yes highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes",
             "",
-            "18696",
-            "1853305"
+            "18697",
+            "1853345"
           ],
           [
             "-1243905",
@@ -11336,7 +11456,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent oneway=yes cycleway:left=lane route_bicycle_ncn=yes",
             "nodeaccessgranted=yes highway=crossing estimated_crossing_class=1 crossing=uncontrolled",
             "18698",
-            "1853480"
+            "1853520"
           ],
           [
             "-1243992",
@@ -11351,7 +11471,7 @@
             "highway=secondary surface=asphalt estimated_traffic_class=4 smoothness=excellent oneway=yes cycleway:left=lane route_bicycle_ncn=yes",
             "",
             "18699",
-            "1853583"
+            "1853623"
           ],
           [
             "-1244151",
@@ -11366,7 +11486,7 @@
             "highway=primary surface=asphalt estimated_traffic_class=5 smoothness=excellent junction=roundabout cycleway:right=no cycleway:left=shared_lane route_bicycle_ncn=yes",
             "",
             "18701",
-            "1853762"
+            "1853802"
           ],
           [
             "-1244186",
@@ -11380,8 +11500,8 @@
             "0",
             "highway=primary surface=asphalt estimated_traffic_class=5 smoothness=excellent junction=roundabout cycleway:left=shared_lane route_bicycle_ncn=yes",
             "",
-            "18701",
-            "1853805"
+            "18702",
+            "1853845"
           ],
           [
             "-1244383",
@@ -11395,8 +11515,8 @@
             "0",
             "highway=primary surface=asphalt estimated_traffic_class=5 smoothness=excellent junction=roundabout cycleway:right=no cycleway:left=shared_lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=crossing crossing=unknown",
-            "18704",
-            "1854103"
+            "18705",
+            "1854143"
           ],
           [
             "-1244432",
@@ -11410,8 +11530,8 @@
             "0",
             "highway=primary surface=asphalt estimated_traffic_class=5 smoothness=excellent junction=roundabout cycleway:right=no cycleway:left=shared_lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
-            "18705",
-            "1854205"
+            "18706",
+            "1854245"
           ],
           [
             "-1244550",
@@ -11426,7 +11546,7 @@
             "highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent oneway=yes cycleway:right=no cycleway:left=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=crossing crossing=uncontrolled",
             "18707",
-            "1854362"
+            "1854402"
           ],
           [
             "-1244772",
@@ -11441,7 +11561,7 @@
             "highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent oneway=yes cycleway:right=no cycleway:left=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
             "18710",
-            "1854655"
+            "1854695"
           ],
           [
             "-1244861",
@@ -11456,7 +11576,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=crossing crossing=uncontrolled",
             "18711",
-            "1854755"
+            "1854795"
           ],
           [
             "-1244904",
@@ -11470,8 +11590,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
-            "18711",
-            "1854798"
+            "18712",
+            "1854838"
           ],
           [
             "-1246851",
@@ -11486,7 +11606,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
             "18736",
-            "1857231"
+            "1857271"
           ],
           [
             "-1246914",
@@ -11501,7 +11621,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent oneway=no cycleway:right=no cycleway:left=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=crossing crossing=unmarked surface=asphalt",
             "18737",
-            "1857336"
+            "1857376"
           ],
           [
             "-1247481",
@@ -11515,8 +11635,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent oneway=no cycleway:right=no cycleway:left=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=crossing crossing=uncontrolled",
-            "18746",
-            "1858306"
+            "18747",
+            "1858346"
           ],
           [
             "-1247614",
@@ -11530,8 +11650,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent oneway=no cycleway:right=no cycleway:left=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
-            "18748",
-            "1858520"
+            "18749",
+            "1858560"
           ],
           [
             "-1248476",
@@ -11545,8 +11665,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=traffic_signals traffic_signals:direction=backward",
-            "18761",
-            "1859823"
+            "18762",
+            "1859863"
           ],
           [
             "-1248549",
@@ -11560,8 +11680,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes direction=backward",
-            "18767",
-            "1859968"
+            "18768",
+            "1860008"
           ],
           [
             "-1248711",
@@ -11576,7 +11696,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=lane route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
             "18770",
-            "1860221"
+            "1860261"
           ],
           [
             "-1248839",
@@ -11591,7 +11711,7 @@
             "highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:right=lane cycleway:left=no route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=crossing crossing=traffic_signals",
             "18772",
-            "1860406"
+            "1860446"
           ],
           [
             "-1248892",
@@ -11606,7 +11726,7 @@
             "highway=tertiary surface=asphalt access=yes estimated_traffic_class=4 foot=yes smoothness=good cycleway:both=no route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes direction=backward",
             "18773",
-            "1860488"
+            "1860528"
           ],
           [
             "-1248941",
@@ -11620,8 +11740,8 @@
             "0",
             "highway=tertiary surface=asphalt access=yes estimated_traffic_class=4 foot=yes smoothness=good cycleway:both=no route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=traffic_signals traffic_signals:direction=backward",
-            "18773",
-            "1860568"
+            "18774",
+            "1860608"
           ],
           [
             "-1249993",
@@ -11636,7 +11756,7 @@
             "highway=tertiary surface=asphalt access=yes estimated_traffic_class=4 foot=yes smoothness=good cycleway:both=no route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "nodeaccessgranted=yes highway=crossing crossing=uncontrolled",
             "18790",
-            "1862219"
+            "1862259"
           ],
           [
             "-1250298",
@@ -11650,8 +11770,8 @@
             "0",
             "highway=tertiary surface=asphalt access=yes estimated_traffic_class=4 foot=yes smoothness=good cycleway:both=no route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
-            "18794",
-            "1862685"
+            "18795",
+            "1862725"
           ],
           [
             "-1250597",
@@ -11666,7 +11786,7 @@
             "highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=no route_bicycle_ncn=yes route_bicycle_lcn=yes",
             "",
             "18799",
-            "1863111"
+            "1863151"
           ],
           [
             "-1251085",
@@ -11681,7 +11801,7 @@
             "highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=no",
             "highway=crossing crossing=uncontrolled",
             "18807",
-            "1863898"
+            "1863938"
           ],
           [
             "-1251929",
@@ -11695,8 +11815,8 @@
             "0",
             "highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=no",
             "highway=crossing crossing=uncontrolled",
-            "18819",
-            "1865180"
+            "18820",
+            "1865220"
           ],
           [
             "-1251956",
@@ -11711,7 +11831,7 @@
             "highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=excellent cycleway:both=no",
             "highway=turning_circle",
             "18820",
-            "1865220"
+            "1865260"
           ],
           [
             "-1252521",
@@ -11725,8 +11845,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt access=no estimated_traffic_class=4 foot=yes bicycle=yes smoothness=excellent cycleway=unknown",
             "highway=turning_circle",
-            "18829",
-            "1866183"
+            "18830",
+            "1866223"
           ],
           [
             "-1252594",
@@ -11741,7 +11861,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=no",
             "highway=crossing crossing=uncontrolled",
             "18831",
-            "1866297"
+            "1866337"
           ],
           [
             "-1253331",
@@ -11755,8 +11875,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=no",
             "highway=crossing crossing=traffic_signals",
-            "18841",
-            "1867379"
+            "18842",
+            "1867419"
           ],
           [
             "-1254776",
@@ -11771,7 +11891,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=4 smoothness=good cycleway:both=no",
             "",
             "18864",
-            "1869605"
+            "1869645"
           ],
           [
             "-1256172",
@@ -11786,7 +11906,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=5 smoothness=good cycleway:both=no",
             "highway=crossing crossing=traffic_signals",
             "18886",
-            "1871843"
+            "1871883"
           ],
           [
             "-1257455",
@@ -11801,7 +11921,7 @@
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=5 smoothness=good cycleway:both=no",
             "highway=crossing crossing=unmarked kerb=lowered",
             "18908",
-            "1874007"
+            "1874047"
           ],
           [
             "-1257621",
@@ -11815,8 +11935,8 @@
             "0",
             "reversedirection=yes highway=tertiary surface=asphalt estimated_traffic_class=5 smoothness=good cycleway:both=no",
             "",
-            "18910",
-            "1874273"
+            "18911",
+            "1874313"
           ],
           [
             "-1257704",
@@ -11831,7 +11951,7 @@
             "reversedirection=yes highway=pedestrian surface=asphalt bicycle=no smoothness=good",
             "",
             "18912",
-            "1874394"
+            "1874434"
           ]
         ],
         "times": [
@@ -13668,939 +13788,968 @@
           12117.104,
           12122.649,
           12129.034,
-          12133.067,
-          12138.608,
-          12141.236,
-          12143.861,
-          12148.976,
-          12149.449,
-          12154.598,
-          12171.97,
-          12178.249,
-          12187.072,
-          12192.356,
-          12193.247,
-          12199.204,
-          12207.638,
-          12214.421,
-          12224.52,
-          12227.865,
-          12230.812,
-          12234.819,
-          12245.054,
-          12247.266,
-          12249.695,
-          12252.03,
-          12263.739,
-          12265.619,
-          12267.53,
-          12271.562,
-          12275.151,
-          12277.946,
-          12282.911,
-          12291.492,
-          12299.768,
-          12309.022,
-          12319.199,
-          12325.024,
-          12326.846,
-          12333.696,
-          12345.628,
-          12348.963,
-          12357.766,
-          12360.066,
-          12363.009,
-          12367.446,
-          12371.569,
-          12375.274,
-          12381.461,
-          12383.276,
-          12384.106,
-          12389.842,
-          12390.363,
-          12394.418,
-          12398.167,
-          12399.969,
-          12401.182,
-          12409.322,
-          12415.561,
-          12427.23,
-          12439.673,
-          12453.717,
-          12457.325,
-          12459.269,
-          12460.85,
-          12469.942,
-          12472.026,
-          12478.739,
-          12488.225,
-          12492.432,
-          12494.348,
-          12495.364,
-          12496.378,
-          12498.742,
-          12499.718,
-          12501.876,
-          12506.693,
-          12510.688,
-          12512.817,
-          12515.473,
-          12524.285,
-          12533.042,
-          12537.392,
-          12543.789,
-          12549.707,
-          12556.677,
-          12559.998,
-          12560.575,
-          12569.102,
-          12571.762,
-          12576.593,
-          12582.639,
-          12587.197,
-          12594.139,
-          12600.111,
-          12601.262,
-          12605.387,
-          12611.198,
-          12618.442,
-          12624.221,
-          12626.566,
-          12635.292,
-          12652.021,
-          12674.816,
-          12702.118,
-          12727.832,
-          12742.808,
-          12764.688,
-          12777.36,
-          12788.82,
-          12805.268,
-          12812.11,
-          12826.722,
-          12886.701,
-          12913.143,
-          12946.979,
-          12983.741,
-          13009.527,
-          13015.2,
-          13161.51,
-          13182.647,
-          13333.174,
-          13437.486,
-          13792.598,
-          13855.699,
-          13886.258,
-          13949.708,
-          13961.508,
-          13988.926,
-          14091.19,
-          14092.231,
-          14101.115,
-          14102.519,
-          14108.545,
-          14111.633,
-          14122.177,
-          14132.451,
-          14162.187,
-          14203.417,
-          14210.944,
-          14221.095,
-          14230.997,
-          14239.123,
-          14250.585,
-          14265.251,
-          14290.368,
-          14312.968,
-          14318.583,
-          14332.217,
-          14334.093,
-          14339.672,
-          14346.567,
-          14353.244,
-          14359.843,
-          14365.039,
-          14373.1,
-          14381.367,
-          14398.746,
-          14413.434,
-          14417.049,
-          14432.064,
-          14462.538,
-          14474.523,
-          14480.322,
-          14484.698,
-          14488.609,
-          14510.771,
-          14522.255,
-          14531.845,
-          14543.917,
-          14549.162,
-          14554.213,
-          14559.482,
-          14564.882,
-          14579.663,
-          14596.871,
-          14612.168,
-          14621.492,
-          14629.811,
-          14637.752,
-          14643.654,
-          14656.568,
-          14660.511,
-          14667.016,
-          14671.511,
-          14693.319,
-          14700.489,
-          14703.669,
-          14719.954,
-          14735.745,
-          14757.658,
-          14765.306,
-          14768.784,
-          14771.596,
-          14781.082,
-          14784.795,
-          14786.734,
-          14788.334,
-          14790.014,
-          14791.693,
-          14794.894,
-          14804.174,
-          14806.174,
-          14810.414,
-          14825.854,
-          14827.614,
-          14830.174,
-          14832.574,
-          14834.734,
-          14837.454,
-          14840.014,
-          14842.653,
-          14845.134,
-          14848.254,
-          14850.894,
-          14853.453,
-          14856.733,
-          14857.934,
-          14859.134,
-          14861.454,
-          14863.134,
-          14865.054,
-          14868.653,
-          14871.613,
-          14873.373,
-          14874.333,
-          14875.453,
-          14876.653,
-          14877.373,
-          14883.933,
-          14903.373,
-          14919.298,
-          14924.644,
-          14950.611,
-          14957.743,
-          14959.109,
-          14960.128,
-          14965.326,
-          14972.337,
-          14981.075,
-          14989.731,
+          12132.562,
+          12133.439,
+          12138.779,
+          12140.085,
+          12141.455,
+          12142.752,
+          12144.077,
+          12149.134,
+          12149.603,
+          12154.622,
+          12158.598,
+          12163.102,
+          12172.56,
+          12178.629,
+          12183.688,
+          12187.733,
+          12192.815,
+          12193.681,
+          12199.5,
+          12207.82,
+          12214.996,
+          12220.812,
+          12225.088,
+          12228.434,
+          12231.38,
+          12233.109,
+          12236.565,
+          12239.943,
+          12243.451,
+          12245.632,
+          12247.744,
+          12248.976,
+          12250.165,
+          12251.375,
+          12252.413,
+          12261.203,
+          12264.48,
+          12265.362,
+          12266.229,
+          12268.103,
+          12271.796,
+          12275.243,
+          12276.567,
+          12282.68,
+          12287.896,
+          12292.134,
+          12299.904,
+          12306.636,
+          12308.838,
+          12313.382,
+          12318.634,
+          12320.131,
+          12321.658,
+          12324.497,
+          12326.35,
+          12329.819,
+          12333.392,
+          12339.286,
+          12345.715,
+          12348.974,
+          12357.681,
+          12359.964,
+          12362.887,
+          12367.309,
+          12371.42,
+          12375.119,
+          12381.297,
+          12383.11,
+          12383.94,
+          12389.543,
+          12390.063,
+          12393.97,
+          12397.705,
+          12399.162,
+          12399.947,
+          12401.114,
+          12408.919,
+          12414.971,
+          12426.192,
+          12438.503,
+          12452.459,
+          12456.048,
+          12457.982,
+          12459.557,
+          12468.618,
+          12470.697,
+          12477.399,
+          12486.878,
+          12490.549,
+          12493.01,
+          12494.027,
+          12495.042,
+          12497.407,
+          12498.384,
+          12500.543,
+          12505.071,
+          12509.357,
+          12511.486,
+          12514.142,
+          12522.954,
+          12531.711,
+          12536.061,
+          12542.458,
+          12548.376,
+          12555.346,
+          12558.667,
+          12559.244,
+          12567.771,
+          12570.431,
+          12575.262,
+          12581.308,
+          12585.866,
+          12592.808,
+          12598.78,
+          12599.931,
+          12604.056,
+          12609.867,
+          12617.111,
+          12622.89,
+          12625.235,
+          12633.961,
+          12650.689,
+          12673.485,
+          12700.787,
+          12726.501,
+          12741.477,
+          12763.357,
+          12776.029,
+          12787.489,
+          12803.937,
+          12810.779,
+          12825.391,
+          12885.37,
+          12911.812,
+          12945.647,
+          12982.41,
+          13008.196,
+          13013.869,
+          13160.179,
+          13181.316,
+          13331.843,
+          13436.155,
+          13791.267,
+          13854.368,
+          13884.927,
+          13948.377,
+          13960.177,
+          13987.595,
+          14089.859,
+          14090.9,
+          14099.784,
+          14101.188,
+          14107.214,
+          14110.302,
+          14120.846,
+          14131.12,
+          14160.855,
+          14202.086,
+          14209.613,
+          14219.764,
+          14229.666,
+          14237.792,
+          14249.254,
+          14263.92,
+          14289.037,
+          14311.637,
+          14317.252,
+          14330.886,
+          14332.762,
+          14338.341,
+          14345.236,
+          14351.913,
+          14358.512,
+          14363.708,
+          14371.769,
+          14380.036,
+          14397.415,
+          14412.103,
+          14415.718,
+          14430.733,
+          14461.207,
+          14473.192,
+          14478.991,
+          14483.367,
+          14487.278,
+          14509.439,
+          14520.924,
+          14530.514,
+          14542.586,
+          14547.831,
+          14552.882,
+          14558.151,
+          14563.551,
+          14578.332,
+          14595.54,
+          14610.837,
+          14620.161,
+          14628.479,
+          14636.421,
+          14642.323,
+          14655.237,
+          14659.18,
+          14665.685,
+          14670.18,
+          14691.988,
+          14699.158,
+          14702.338,
+          14718.623,
+          14734.414,
+          14756.327,
+          14763.975,
+          14767.453,
+          14770.265,
+          14779.751,
+          14783.464,
+          14785.403,
+          14787.003,
+          14788.683,
+          14790.362,
+          14793.562,
+          14802.843,
+          14804.843,
+          14809.083,
+          14824.523,
+          14826.283,
+          14828.843,
+          14831.243,
+          14833.403,
+          14836.123,
+          14838.683,
+          14841.322,
+          14843.803,
+          14846.923,
+          14849.562,
+          14852.122,
+          14855.402,
+          14856.603,
+          14857.803,
+          14860.123,
+          14861.803,
+          14863.723,
+          14867.322,
+          14870.282,
+          14872.042,
+          14873.002,
+          14874.122,
+          14875.322,
+          14876.042,
+          14882.602,
+          14902.042,
+          14917.967,
+          14923.312,
+          14949.28,
+          14956.412,
+          14957.778,
+          14958.797,
+          14963.995,
+          14971.006,
+          14979.744,
+          14988.4,
+          14989.186,
+          14989.98,
           14990.517,
-          14991.312,
-          14991.848,
-          14992.359,
-          14994.096,
-          14999.637,
-          15000.458,
-          15001.258,
-          15001.957,
-          15002.789,
-          15003.638,
-          15012.385,
-          15014.749,
-          15021.15,
-          15022.053,
-          15023.103,
-          15027.529,
-          15031.394,
-          15035.876,
-          15040.61,
-          15045.073,
-          15046.197,
-          15050.979,
-          15058.507,
-          15061.957,
-          15067.647,
-          15073.815,
-          15075.776,
-          15086.678,
-          15088.587,
-          15092.7,
-          15098.67,
-          15099.974,
-          15100.412,
-          15100.853,
-          15101.322,
-          15101.793,
-          15102.265,
-          15102.737,
-          15103.479,
-          15104.227,
-          15107.114,
-          15119.055,
-          15123.043,
-          15132.891,
-          15138.275,
-          15144.162,
-          15148.863,
-          15153.673,
-          15157.814,
-          15163.808,
-          15167.954,
-          15173.951,
-          15183.62,
-          15184.857,
-          15190.431,
-          15194.502,
-          15200.284,
-          15206.71,
-          15219.074,
-          15223.79,
-          15227.467,
-          15241.562,
-          15246.906,
-          15249.695,
-          15253.004,
-          15257.16,
-          15259.944,
-          15262.874,
-          15265.932,
-          15270.064,
-          15271.19,
-          15271.955,
-          15275.121,
-          15280.152,
-          15286.517,
-          15289.733,
-          15292.633,
-          15298.464,
-          15306.147,
-          15313.912,
-          15317.401,
-          15326.097,
-          15336.891,
-          15342.243,
-          15344.11,
-          15346.169,
-          15347.998,
-          15350.301,
-          15354.451,
-          15358.409,
-          15367.732,
-          15371.764,
-          15374.914,
-          15376.981,
-          15380.159,
-          15391.51,
-          15394.319,
-          15395.105,
-          15397.162,
-          15398.914,
-          15407.474,
-          15412.549,
-          15414.199,
-          15416.812,
-          15431.89,
-          15437.549,
-          15441.706,
-          15445.149,
-          15448.528,
-          15459.908,
-          15475.45,
-          15479.912,
-          15492.361,
-          15496.61,
-          15499.537,
-          15502.229,
-          15504.853,
-          15518.676,
-          15522.597,
-          15526.926,
-          15531.183,
-          15533.736,
-          15535.986,
-          15538.923,
-          15540.542,
-          15544.899,
-          15549.529,
-          15554.537,
-          15563.989,
-          15580.131,
-          15583.256,
-          15587.465,
-          15592.871,
-          15596.29,
-          15600.476,
-          15617.748,
-          15633.865,
-          15637.605,
-          15644.046,
-          15648.337,
-          15651.838,
-          15654.766,
-          15658.426,
-          15661.001,
-          15665.214,
-          15676.769,
-          15691.781,
-          15695.409,
-          15719.449,
-          15767.503,
-          15792.907,
-          15802.328,
-          15809.999,
-          15812.482,
-          15813.661,
-          15814.702,
-          15815.301,
-          15815.902,
-          15816.354,
-          15816.781,
-          15817.237,
-          15818.1,
-          15818.533,
-          15819.26,
-          15822.77,
-          15824.067,
-          15825.464,
-          15829.929,
-          15830.992,
-          15837.894,
-          15840.557,
-          15843.885,
-          15844.344,
-          15874.072,
-          15875.946,
-          15879.347,
-          15908.363,
-          15960.012,
-          15967.846,
-          15976.598,
-          15984.859,
-          15991.961,
-          16001.174,
-          16008.706,
-          16013.09,
-          16016.795,
-          16023.938,
-          16026.159,
-          16045.404,
-          16068.916,
-          16075.201,
-          16081.174,
-          16085.915,
-          16091.536,
-          16096.634,
-          16102.408,
-          16108.666,
-          16114.416,
-          16120.734,
-          16126.738,
-          16132.909,
-          16139.413,
-          16144.945,
-          16148.173,
-          16151.554,
-          16154.952,
-          16158.285,
-          16163.537,
-          16167.664,
-          16175.13,
-          16191.436,
-          16202.022,
-          16232.107,
-          16238.768,
-          16246.682,
-          16253.991,
-          16260.329,
-          16267.085,
-          16274.011,
-          16279.928,
-          16280.268,
-          16284.853,
-          16285.939,
-          16291.663,
-          16296.996,
-          16302.273,
-          16305.671,
-          16316.487,
-          16321.12,
-          16330.433,
-          16335.773,
-          16345,
-          16352.153,
-          16358.07,
-          16386.414,
-          16392.018,
-          16395.135,
-          16400.066,
-          16405.191,
-          16409.945,
-          16414.857,
-          16421.117,
-          16429.582,
-          16442.109,
-          16448.893,
-          16450.885,
-          16460.215,
-          16465.896,
-          16469.625,
-          16484.119,
-          16493.115,
-          16498.389,
-          16501.617,
-          16503.504,
-          16504.053,
-          16507.57,
-          16509.908,
-          16512.746,
-          16518.371,
-          16529.08,
-          16535.758,
-          16542.48,
-          16544.232,
-          16545.334,
-          16546.924,
-          16548.893,
-          16551.346,
-          16551.852,
-          16553.928,
-          16555.994,
-          16559.164,
-          16562.709,
-          16565.658,
-          16570.166,
-          16572.658,
-          16574.982,
-          16576.641,
-          16578.217,
-          16581.768,
-          16591.596,
-          16594.926,
-          16595.953,
-          16597.396,
-          16599.824,
-          16602.289,
-          16603.066,
-          16603.846,
-          16604.629,
-          16605.414,
-          16606.834,
-          16614.033,
-          16617.604,
-          16622.674,
-          16628.604,
-          16630.293,
-          16632.514,
-          16634.621,
-          16641.953,
-          16644.252,
-          16646.559,
-          16649.482,
-          16658.643,
-          16667.713,
-          16672.727,
-          16687.984,
-          16692.99,
-          16696.332,
-          16699.846,
-          16703.361,
-          16707.629,
-          16722.018,
-          16723.82,
-          16736.127,
-          16738.527,
-          16739.582,
-          16740.01,
-          16745.361,
-          16748.701,
-          16761.279,
-          16766.045,
-          16771.023,
-          16775.246,
-          16780.307,
-          16802.375,
-          16810.346,
-          16814.617,
-          16821.668,
-          16828.342,
-          16834.379,
-          16881.32,
-          16887.314,
-          16917.637,
-          16929.832,
-          16939.963,
-          16947.861,
-          16954.977,
-          16965.258,
-          16973.521,
-          16993.975,
-          17005.055,
-          17015.736,
-          17024.23,
-          17043.512,
-          17053.373,
-          17064.287,
-          17071.117,
-          17164.934,
-          17175.312,
-          17189.986,
-          17196.555,
-          17201.209,
-          17207.789,
-          17215.902,
-          17238.762,
-          17253.838,
-          17272.119,
-          17277.678,
-          17288.141,
-          17291.381,
-          17294.244,
-          17298.16,
-          17301.99,
-          17308.717,
-          17311.438,
-          17367.326,
-          17370.65,
-          17373.98,
-          17379.32,
-          17387.578,
-          17396.516,
-          17401.838,
-          17408.391,
-          17420.713,
-          17426.609,
-          17459.367,
-          17499.113,
-          17518.332,
-          17529.762,
-          17542.027,
-          17555.133,
-          17559.893,
-          17564.426,
-          17575.23,
-          17576.135,
-          17579.188,
-          17583.527,
-          17593.57,
-          17604.635,
-          17621.682,
-          17630.975,
-          17638.822,
-          17643.916,
-          17653.404,
-          17660.15,
-          17664.166,
-          17667.713,
-          17672.49,
-          17707.707,
-          17718.309,
-          17725.307,
-          17729.482,
-          17733.273,
-          17743.35,
-          17749.277,
-          17749.938,
-          17753.746,
-          17760.68,
-          17768.166,
-          17770.877,
-          17772.074,
-          17773.953,
-          17774.592,
-          17775.875,
-          17776.68,
-          17777.162,
-          17778.131,
-          17779.34,
-          17780.629,
-          17781.91,
-          17783.365,
-          17785.531,
-          17787.5,
-          17792.105,
-          17795.096,
-          17804.123,
-          17813.357,
-          17815.564,
-          17839.178,
-          17850.285,
-          17857.377,
-          17873.654,
-          17879.883,
-          17888.893,
-          17892.541,
-          17902.342,
-          17914.002,
-          17917.076,
-          17928.412,
-          17931.166,
-          17932.82,
-          17935.254,
-          17946.02,
-          17949.334,
-          17950.791,
-          17955.572,
-          17958.723,
-          17961.504,
-          17964.238,
-          17970.111,
-          17972.146,
-          17974.105,
-          17976.373,
-          17979.758,
-          17981.057,
-          17981.795,
-          17983.754,
-          17988.156,
-          17988.908,
-          17990.031,
-          17994.637,
-          17998.111,
-          18005.518,
-          18010.348,
-          18016.891,
-          18023.322,
-          18027.91,
-          18032.227,
-          18035.457,
-          18037.244,
-          18038.873,
-          18041.326,
-          18045.986,
-          18050.178,
-          18056.719,
-          18058.334,
-          18059.889,
-          18062.461,
-          18063.916,
-          18065.902,
-          18068.086,
-          18069.094,
-          18071.066,
-          18074.619,
-          18077.961,
-          18080.383,
-          18082.547,
-          18088.188,
-          18098.242,
-          18104.49,
-          18112.678,
-          18116.289,
-          18134.252,
-          18148.889,
-          18156.309,
-          18159.887,
-          18165.848,
-          18169.223,
-          18170.619,
-          18171.764,
-          18172.666,
-          18174.119,
-          18175.754,
-          18177.363,
-          18178.754,
-          18183.787,
-          18184.734,
-          18185.676,
-          18191.049,
-          18194.453,
-          18200.393,
-          18208.17,
-          18214.855,
-          18227.635,
-          18228.887,
-          18236.822,
-          18239.275,
-          18242.42,
-          18245.578,
-          18248.969,
-          18251.252,
-          18256.498,
-          18257.695,
-          18259.166,
-          18263.936,
-          18265.914,
-          18267.777,
-          18268.119,
-          18269.402,
-          18271.766,
-          18275.521,
-          18277.537,
-          18282.744,
-          18287.303,
-          18288.455,
-          18290.246,
-          18291.848,
-          18297.762,
-          18299.564,
-          18301.58,
-          18302.812,
-          18304.311,
-          18305.914,
-          18308.697,
-          18311.227,
-          18318.018,
-          18320.172,
-          18321.135,
-          18325.273,
-          18331.586,
-          18335.766,
-          18338.754,
-          18339.359,
-          18340.119,
-          18343.35,
-          18346.004,
-          18346.16,
-          18346.633,
-          18362.637,
-          18367.4,
-          18371.484,
-          18375.148,
-          18379.178,
-          18380.078,
-          18387.717,
-          18395.965,
-          18397.311,
-          18403.627,
-          18408.047,
-          18410.93,
-          18414.824,
-          18419.557,
-          18427.578,
-          18429.719,
-          18441.385,
-          18448.402,
-          18451.168,
-          18452.082,
-          18454.6,
-          18465.814,
-          18469.662,
-          18485.08,
-          18488.41,
-          18491.641,
-          18495.373,
-          18502.615,
-          18503.707,
-          18508.994,
-          18513.65,
-          18517.447,
-          18518.271,
-          18519.291,
-          18519.898,
-          18522.492,
-          18524.061,
-          18525.611,
-          18534.562,
-          18538.553,
-          18543.803,
-          18548.992,
-          18550.932,
-          18552.463,
-          18553.602,
-          18557.391,
-          18558.646,
-          18565.047,
-          18575.795,
-          18577.164,
-          18580.051,
-          18588.049,
-          18595.055,
-          18597.178,
-          18605.475,
-          18607.576,
-          18608.031,
-          18608.336,
-          18615.15,
-          18620.738,
-          18622.703,
-          18629.705,
-          18631.32,
-          18633.256,
-          18636.135,
-          18641.564,
-          18645.363,
-          18646.002,
-          18646.602,
-          18647.168,
-          18648.66,
-          18649.18,
-          18655.467,
-          18657.141,
-          18664.119,
-          18664.367,
-          18665.758,
-          18668.639,
-          18672.979,
-          18678.719,
-          18687.164,
-          18690.533,
-          18696.795,
-          18698.541,
-          18699.574,
-          18700.02,
-          18701.363,
-          18701.787,
-          18702.355,
-          18703.031,
-          18704.768,
-          18705.789,
-          18707.357,
-          18708.625,
-          18710.281,
-          18711.283,
-          18711.717,
-          18720.598,
-          18727.871,
-          18734.631,
-          18736.037,
-          18737.088,
-          18741.717,
-          18746.783,
-          18748.926,
-          18751.936,
-          18755.096,
-          18759.516,
-          18761.955,
-          18767.807,
-          18770.336,
-          18772.189,
-          18773.002,
-          18773.809,
-          18779.307,
-          18790.311,
-          18794.975,
-          18799.229,
-          18807.104,
-          18816.621,
-          18819.914,
-          18820.318,
-          18825.428,
-          18829.939,
-          18831.08,
-          18833.971,
-          18840.898,
-          18841.906,
-          18853.51,
-          18864.156,
-          18881.805,
-          18883.059,
-          18886.529,
-          18908.168,
-          18909.816,
-          18910.832,
-          18912.039
+          14991.028,
+          14992.765,
+          14998.306,
+          14999.127,
+          14999.927,
+          15000.626,
+          15001.458,
+          15002.307,
+          15011.054,
+          15013.418,
+          15019.819,
+          15020.722,
+          15021.771,
+          15026.198,
+          15030.062,
+          15034.545,
+          15039.279,
+          15043.742,
+          15044.866,
+          15049.647,
+          15057.176,
+          15060.626,
+          15066.316,
+          15072.484,
+          15074.445,
+          15085.347,
+          15087.256,
+          15091.369,
+          15097.339,
+          15098.643,
+          15099.081,
+          15099.521,
+          15099.991,
+          15100.462,
+          15100.934,
+          15101.406,
+          15102.148,
+          15102.896,
+          15105.783,
+          15117.724,
+          15121.712,
+          15131.56,
+          15136.944,
+          15142.831,
+          15147.532,
+          15152.342,
+          15156.483,
+          15162.477,
+          15166.623,
+          15172.62,
+          15182.289,
+          15183.526,
+          15189.1,
+          15193.171,
+          15198.953,
+          15205.379,
+          15217.743,
+          15222.459,
+          15226.136,
+          15240.23,
+          15245.575,
+          15248.364,
+          15251.673,
+          15255.829,
+          15258.613,
+          15261.543,
+          15264.601,
+          15268.733,
+          15269.859,
+          15270.624,
+          15273.79,
+          15278.821,
+          15285.186,
+          15288.402,
+          15291.302,
+          15297.133,
+          15304.816,
+          15312.581,
+          15316.07,
+          15324.766,
+          15335.56,
+          15340.912,
+          15342.779,
+          15344.838,
+          15346.667,
+          15348.97,
+          15353.12,
+          15357.078,
+          15366.401,
+          15370.433,
+          15373.583,
+          15375.65,
+          15378.828,
+          15390.179,
+          15392.988,
+          15393.774,
+          15395.831,
+          15397.583,
+          15406.143,
+          15411.218,
+          15412.868,
+          15415.481,
+          15430.559,
+          15436.218,
+          15440.375,
+          15443.818,
+          15447.197,
+          15458.577,
+          15474.119,
+          15478.581,
+          15491.03,
+          15495.279,
+          15498.206,
+          15500.897,
+          15503.521,
+          15517.345,
+          15521.266,
+          15525.595,
+          15529.852,
+          15532.405,
+          15534.655,
+          15537.592,
+          15539.211,
+          15543.568,
+          15548.198,
+          15553.206,
+          15562.658,
+          15578.8,
+          15581.925,
+          15586.134,
+          15591.54,
+          15594.959,
+          15599.145,
+          15616.417,
+          15632.534,
+          15636.274,
+          15642.715,
+          15647.006,
+          15650.507,
+          15653.435,
+          15657.095,
+          15659.67,
+          15663.883,
+          15675.438,
+          15690.45,
+          15694.078,
+          15718.118,
+          15766.172,
+          15791.576,
+          15800.997,
+          15808.668,
+          15811.151,
+          15812.33,
+          15813.371,
+          15813.97,
+          15814.571,
+          15815.023,
+          15815.45,
+          15815.906,
+          15816.769,
+          15817.202,
+          15817.929,
+          15821.438,
+          15822.736,
+          15824.133,
+          15828.598,
+          15829.661,
+          15836.562,
+          15839.226,
+          15842.554,
+          15843.013,
+          15872.741,
+          15874.615,
+          15878.016,
+          15907.032,
+          15958.681,
+          15966.515,
+          15975.267,
+          15983.528,
+          15990.63,
+          15999.843,
+          16007.375,
+          16011.759,
+          16015.464,
+          16022.606,
+          16024.828,
+          16044.073,
+          16067.585,
+          16073.87,
+          16079.843,
+          16084.584,
+          16090.205,
+          16095.303,
+          16101.077,
+          16107.335,
+          16113.085,
+          16119.403,
+          16125.407,
+          16131.578,
+          16138.082,
+          16143.614,
+          16146.842,
+          16150.223,
+          16153.621,
+          16156.954,
+          16162.206,
+          16166.333,
+          16173.799,
+          16190.104,
+          16200.691,
+          16230.776,
+          16237.437,
+          16245.351,
+          16252.66,
+          16258.998,
+          16265.754,
+          16272.68,
+          16278.597,
+          16278.937,
+          16283.521,
+          16284.608,
+          16290.332,
+          16295.665,
+          16300.942,
+          16304.34,
+          16315.156,
+          16319.789,
+          16329.102,
+          16334.442,
+          16343.669,
+          16350.822,
+          16356.739,
+          16385.084,
+          16390.688,
+          16393.805,
+          16398.736,
+          16403.861,
+          16408.615,
+          16413.527,
+          16419.787,
+          16428.252,
+          16440.779,
+          16447.562,
+          16449.555,
+          16458.885,
+          16464.566,
+          16468.295,
+          16482.789,
+          16491.785,
+          16497.059,
+          16500.287,
+          16502.174,
+          16502.723,
+          16506.24,
+          16508.578,
+          16511.416,
+          16517.041,
+          16527.75,
+          16534.428,
+          16541.15,
+          16542.902,
+          16544.004,
+          16545.594,
+          16547.562,
+          16550.016,
+          16550.521,
+          16552.598,
+          16554.664,
+          16557.834,
+          16561.379,
+          16564.328,
+          16568.836,
+          16571.328,
+          16573.652,
+          16575.311,
+          16576.887,
+          16580.438,
+          16590.266,
+          16593.596,
+          16594.623,
+          16596.066,
+          16598.494,
+          16600.959,
+          16601.736,
+          16602.516,
+          16603.299,
+          16604.084,
+          16605.504,
+          16612.703,
+          16616.273,
+          16621.344,
+          16627.273,
+          16628.963,
+          16631.184,
+          16633.291,
+          16640.623,
+          16642.922,
+          16645.229,
+          16648.152,
+          16657.312,
+          16666.383,
+          16671.396,
+          16686.654,
+          16691.66,
+          16695.002,
+          16698.516,
+          16702.031,
+          16706.299,
+          16720.688,
+          16722.49,
+          16734.797,
+          16737.197,
+          16738.252,
+          16738.68,
+          16744.031,
+          16747.371,
+          16759.949,
+          16764.715,
+          16769.693,
+          16773.916,
+          16778.977,
+          16801.045,
+          16809.016,
+          16813.287,
+          16820.338,
+          16827.012,
+          16833.049,
+          16879.99,
+          16885.984,
+          16916.307,
+          16928.502,
+          16938.633,
+          16946.531,
+          16953.646,
+          16963.928,
+          16972.191,
+          16992.645,
+          17003.725,
+          17014.406,
+          17022.9,
+          17042.182,
+          17052.043,
+          17062.957,
+          17069.787,
+          17163.604,
+          17173.982,
+          17188.656,
+          17195.225,
+          17199.879,
+          17206.459,
+          17214.572,
+          17237.432,
+          17252.508,
+          17270.789,
+          17276.348,
+          17286.811,
+          17290.051,
+          17292.914,
+          17296.83,
+          17300.66,
+          17307.387,
+          17310.107,
+          17365.996,
+          17369.32,
+          17372.65,
+          17377.99,
+          17386.248,
+          17395.186,
+          17400.508,
+          17407.061,
+          17419.383,
+          17425.279,
+          17458.037,
+          17497.783,
+          17517.002,
+          17528.432,
+          17540.697,
+          17553.803,
+          17558.562,
+          17563.096,
+          17573.9,
+          17574.805,
+          17577.857,
+          17582.197,
+          17592.24,
+          17603.305,
+          17620.352,
+          17629.645,
+          17637.492,
+          17642.586,
+          17652.074,
+          17658.82,
+          17662.836,
+          17666.383,
+          17671.16,
+          17706.377,
+          17716.979,
+          17723.977,
+          17728.152,
+          17731.943,
+          17742.02,
+          17747.947,
+          17748.607,
+          17752.416,
+          17759.35,
+          17766.836,
+          17769.547,
+          17770.744,
+          17772.623,
+          17773.262,
+          17774.545,
+          17775.35,
+          17775.832,
+          17776.801,
+          17778.01,
+          17779.299,
+          17780.58,
+          17782.035,
+          17784.201,
+          17786.17,
+          17790.775,
+          17793.766,
+          17802.793,
+          17812.027,
+          17814.234,
+          17837.848,
+          17848.955,
+          17856.047,
+          17876.932,
+          17886.768,
+          17893.461,
+          17896.561,
+          17899.797,
+          17909.104,
+          17911.342,
+          17912.344,
+          17913.336,
+          17916.461,
+          17924.574,
+          17925.852,
+          17929.18,
+          17932.17,
+          17934.248,
+          17935.271,
+          17943.9,
+          17947.84,
+          17948.949,
+          17949.133,
+          17950.053,
+          17950.602,
+          17955.607,
+          17958.771,
+          17961.564,
+          17964.502,
+          17965.273,
+          17966.709,
+          17970.904,
+          17977.426,
+          17981.986,
+          17982.707,
+          17984.625,
+          17988.947,
+          17989.688,
+          17990.793,
+          17995.34,
+          17998.783,
+          18006.15,
+          18010.963,
+          18017.486,
+          18023.904,
+          18028.484,
+          18032.795,
+          18036.021,
+          18037.807,
+          18039.436,
+          18041.887,
+          18046.545,
+          18050.734,
+          18057.273,
+          18058.887,
+          18060.441,
+          18063.012,
+          18064.467,
+          18066.453,
+          18068.637,
+          18069.645,
+          18071.615,
+          18075.166,
+          18078.506,
+          18080.928,
+          18083.092,
+          18088.732,
+          18098.787,
+          18105.035,
+          18113.223,
+          18116.834,
+          18134.797,
+          18149.434,
+          18156.854,
+          18160.432,
+          18166.393,
+          18169.768,
+          18171.164,
+          18172.309,
+          18173.211,
+          18174.664,
+          18176.299,
+          18177.908,
+          18179.299,
+          18184.332,
+          18185.279,
+          18186.221,
+          18191.594,
+          18194.998,
+          18200.938,
+          18208.715,
+          18215.4,
+          18228.18,
+          18229.432,
+          18237.367,
+          18239.82,
+          18242.965,
+          18246.123,
+          18249.514,
+          18251.797,
+          18257.043,
+          18258.24,
+          18259.711,
+          18264.48,
+          18266.459,
+          18268.242,
+          18268.588,
+          18269.762,
+          18272.133,
+          18275.898,
+          18277.918,
+          18283.131,
+          18287.691,
+          18288.844,
+          18290.635,
+          18292.238,
+          18298.154,
+          18299.957,
+          18301.973,
+          18303.205,
+          18304.703,
+          18306.307,
+          18309.09,
+          18311.621,
+          18318.412,
+          18320.566,
+          18321.529,
+          18325.668,
+          18331.98,
+          18336.16,
+          18339.148,
+          18339.754,
+          18340.514,
+          18343.744,
+          18346.398,
+          18346.555,
+          18347.027,
+          18363.031,
+          18367.795,
+          18371.879,
+          18375.543,
+          18379.572,
+          18380.473,
+          18388.111,
+          18396.359,
+          18397.705,
+          18404.021,
+          18408.441,
+          18411.324,
+          18415.219,
+          18419.951,
+          18427.973,
+          18430.113,
+          18441.779,
+          18448.797,
+          18451.562,
+          18452.477,
+          18454.994,
+          18466.209,
+          18470.057,
+          18485.475,
+          18488.805,
+          18492.035,
+          18495.768,
+          18503.01,
+          18504.102,
+          18509.389,
+          18514.045,
+          18517.842,
+          18518.666,
+          18519.686,
+          18520.293,
+          18522.887,
+          18524.455,
+          18526.006,
+          18534.957,
+          18538.947,
+          18544.197,
+          18549.387,
+          18551.326,
+          18552.857,
+          18553.996,
+          18557.785,
+          18559.041,
+          18565.441,
+          18576.189,
+          18577.559,
+          18580.445,
+          18588.443,
+          18595.449,
+          18597.572,
+          18605.869,
+          18607.971,
+          18608.426,
+          18608.73,
+          18615.545,
+          18621.133,
+          18623.098,
+          18630.1,
+          18631.715,
+          18633.65,
+          18636.529,
+          18641.959,
+          18645.758,
+          18646.396,
+          18646.996,
+          18647.562,
+          18649.055,
+          18649.574,
+          18655.861,
+          18657.535,
+          18664.514,
+          18664.762,
+          18666.152,
+          18669.033,
+          18673.373,
+          18679.113,
+          18687.559,
+          18690.928,
+          18697.189,
+          18698.936,
+          18699.969,
+          18700.414,
+          18701.758,
+          18702.182,
+          18702.75,
+          18703.426,
+          18705.162,
+          18706.184,
+          18707.752,
+          18709.02,
+          18710.676,
+          18711.678,
+          18712.111,
+          18720.992,
+          18728.266,
+          18735.025,
+          18736.432,
+          18737.482,
+          18742.111,
+          18747.178,
+          18749.32,
+          18752.33,
+          18755.49,
+          18759.91,
+          18762.35,
+          18768.201,
+          18770.73,
+          18772.584,
+          18773.396,
+          18774.203,
+          18779.701,
+          18790.705,
+          18795.369,
+          18799.623,
+          18807.498,
+          18817.016,
+          18820.309,
+          18820.713,
+          18825.822,
+          18830.334,
+          18831.475,
+          18834.365,
+          18841.293,
+          18842.301,
+          18853.904,
+          18864.551,
+          18882.199,
+          18883.453,
+          18886.924,
+          18908.562,
+          18910.211,
+          18911.227,
+          18912.434
         ]
       },
       "geometry": {
@@ -23767,24 +23916,39 @@
             127.5
           ],
           [
-            -0.849094,
-            51.610825,
+            -0.849108,
+            51.610823,
             126.75
           ],
           [
-            -0.849283,
-            51.611165,
-            125.0
+            -0.849287,
+            51.611095,
+            125.5
           ],
           [
-            -0.849324,
-            51.611648,
+            -0.849303,
+            51.611166,
+            125.25
+          ],
+          [
+            -0.849349,
+            51.611642,
             124.0
+          ],
+          [
+            -0.849434,
+            51.611749,
+            123.25
           ],
           [
             -0.849544,
             51.611852,
             122.75
+          ],
+          [
+            -0.849686,
+            51.611936,
+            122.0
           ],
           [
             -0.849858,
@@ -23803,8 +23967,18 @@
           ],
           [
             -0.851495,
-            51.61243,
+            51.61242,
             117.5
+          ],
+          [
+            -0.852053,
+            51.612436,
+            117.25
+          ],
+          [
+            -0.852671,
+            51.612433,
+            116.5
           ],
           [
             -0.853864,
@@ -23812,14 +23986,19 @@
             115.75
           ],
           [
-            -0.854697,
-            51.612489,
+            -0.854692,
+            51.612496,
             114.0
           ],
           [
-            -0.855692,
-            51.612697,
-            113.5
+            -0.855182,
+            51.612595,
+            114.75
+          ],
+          [
+            -0.855664,
+            51.612719,
+            113.25
           ],
           [
             -0.85625,
@@ -23842,33 +24021,53 @@
             110.75
           ],
           [
-            -0.858413,
-            51.614066,
-            108.5
+            -0.858437,
+            51.614048,
+            109.0
           ],
           [
-            -0.859581,
-            51.614546,
+            -0.859105,
+            51.61436,
+            107.25
+          ],
+          [
+            -0.859584,
+            51.614536,
             106.75
           ],
           [
-            -0.859984,
-            51.614663,
-            105.75
+            -0.859994,
+            51.614638,
+            106.0
           ],
           [
-            -0.860405,
-            51.614733,
-            104.5
+            -0.860418,
+            51.614701,
+            104.75
           ],
           [
-            -0.86098,
-            51.614743,
-            103.75
+            -0.860684,
+            51.61471,
+            104.0
           ],
           [
-            -0.862301,
-            51.614551,
+            -0.861196,
+            51.614677,
+            103.25
+          ],
+          [
+            -0.861633,
+            51.614616,
+            103.25
+          ],
+          [
+            -0.862025,
+            51.614545,
+            103.5
+          ],
+          [
+            -0.862294,
+            51.614529,
             102.75
           ],
           [
@@ -23877,14 +24076,29 @@
             101.25
           ],
           [
-            -0.862954,
-            51.614592,
+            -0.862785,
+            51.614559,
+            101.25
+          ],
+          [
+            -0.862937,
+            51.614608,
             100.75
           ],
           [
-            -0.863249,
-            51.614732,
-            99.25
+            -0.863085,
+            51.614682,
+            100.0
+          ],
+          [
+            -0.863198,
+            51.614753,
+            99.75
+          ],
+          [
+            -0.863929,
+            51.615442,
+            98.25
           ],
           [
             -0.864212,
@@ -23892,38 +24106,48 @@
             97.25
           ],
           [
-            -0.864385,
-            51.615755,
+            -0.864285,
+            51.615718,
+            97.25
+          ],
+          [
+            -0.864374,
+            51.615761,
             97.0
           ],
           [
-            -0.864573,
-            51.615852,
+            -0.864581,
+            51.615859,
             96.5
           ],
           [
-            -0.865091,
-            51.615873,
+            -0.865087,
+            51.615864,
             96.0
           ],
           [
-            -0.86558,
-            51.615873,
+            -0.865576,
+            51.615861,
             95.0
           ],
           [
-            -0.865923,
-            51.615831,
+            -0.865751,
+            51.615851,
             95.0
           ],
           [
             -0.86655,
-            51.615772,
+            51.615767,
             94.25
           ],
           [
-            -0.867752,
-            51.615564,
+            -0.867142,
+            51.615661,
+            94.0
+          ],
+          [
+            -0.867749,
+            51.615572,
             92.0
           ],
           [
@@ -23932,29 +24156,59 @@
             91.25
           ],
           [
-            -0.869917,
-            51.615478,
+            -0.869685,
+            51.615514,
+            90.0
+          ],
+          [
+            -0.869926,
+            51.615495,
             90.25
           ],
           [
-            -0.871034,
-            51.615429,
-            89.75
-          ],
-          [
-            -0.871629,
-            51.61535,
+            -0.870472,
+            51.615467,
             89.5
           ],
           [
-            -0.871822,
-            51.615324,
+            -0.871027,
+            51.61545,
+            89.75
+          ],
+          [
+            -0.87118,
+            51.61544,
+            89.5
+          ],
+          [
+            -0.87134,
+            51.615422,
+            89.5
+          ],
+          [
+            -0.871635,
+            51.615377,
+            89.25
+          ],
+          [
+            -0.871833,
+            51.615345,
             89.0
           ],
           [
-            -0.872605,
-            51.615135,
+            -0.872225,
+            51.615252,
+            88.25
+          ],
+          [
+            -0.87261,
+            51.615146,
             88.0
+          ],
+          [
+            -0.873322,
+            51.614935,
+            86.5
           ],
           [
             -0.874009,
@@ -23997,33 +24251,33 @@
             81.0
           ],
           [
-            -0.877976,
-            51.613436,
+            -0.87798,
+            51.613443,
             81.0
           ],
           [
-            -0.878184,
-            51.613411,
+            -0.878188,
+            51.613421,
             80.5
           ],
           [
-            -0.878276,
-            51.613396,
+            -0.878291,
+            51.613415,
             80.25
           ],
           [
-            -0.878955,
-            51.613386,
+            -0.878954,
+            51.613396,
             80.0
           ],
           [
-            -0.879015,
-            51.613391,
+            -0.879017,
+            51.613395,
             80.0
           ],
           [
-            -0.879444,
-            51.613373,
+            -0.879442,
+            51.613384,
             80.0
           ],
           [
@@ -24032,8 +24286,13 @@
             80.25
           ],
           [
-            -0.880043,
-            51.613292,
+            -0.879929,
+            51.613327,
+            80.5
+          ],
+          [
+            -0.880041,
+            51.613298,
             81.0
           ],
           [
@@ -24047,8 +24306,8 @@
             82.75
           ],
           [
-            -0.881037,
-            51.612829,
+            -0.881048,
+            51.612838,
             84.5
           ],
           [
@@ -24072,8 +24331,8 @@
             87.0
           ],
           [
-            -0.883238,
-            51.612292,
+            -0.883242,
+            51.612291,
             86.75
           ],
           [
@@ -24102,9 +24361,9 @@
             80.5
           ],
           [
-            -0.886436,
-            51.611747,
-            79.0
+            -0.886353,
+            51.611769,
+            79.25
           ],
           [
             -0.886673,
@@ -24137,8 +24396,8 @@
             77.25
           ],
           [
-            -0.888048,
-            51.611796,
+            -0.888001,
+            51.611807,
             78.0
           ],
           [
@@ -27117,11 +27376,6 @@
             67.75
           ],
           [
-            -1.189438,
-            51.724415,
-            67.0
-          ],
-          [
             -1.189991,
             51.724642,
             66.0
@@ -27132,104 +27386,144 @@
             67.0
           ],
           [
-            -1.190884,
-            51.724985,
-            66.75
+            -1.191043,
+            51.725056,
+            67.0
           ],
           [
-            -1.191559,
-            51.725157,
+            -1.191249,
+            51.725117,
+            67.25
+          ],
+          [
+            -1.191463,
+            51.725172,
             67.5
           ],
           [
-            -1.192352,
-            51.72531,
+            -1.192058,
+            51.725297,
             68.0
           ],
           [
-            -1.192571,
+            -1.192211,
+            51.725295,
+            68.0
+          ],
+          [
+            -1.192277,
+            51.725309,
+            68.0
+          ],
+          [
+            -1.192344,
+            51.725323,
+            68.0
+          ],
+          [
+            -1.192556,
             51.725369,
             68.0
           ],
           [
-            -1.193191,
-            51.725584,
+            -1.193003,
+            51.725528,
+            68.75
+          ],
+          [
+            -1.193075,
+            51.725553,
+            68.75
+          ],
+          [
+            -1.19326,
+            51.725618,
             69.0
           ],
           [
-            -1.193357,
-            51.725644,
+            -1.193434,
+            51.725685,
             69.0
           ],
           [
-            -1.193452,
-            51.725677,
+            -1.193555,
+            51.72573,
             69.0
           ],
           [
-            -1.1936,
-            51.725729,
+            -1.193573,
+            51.725775,
             69.0
           ],
           [
-            -1.194291,
-            51.725999,
+            -1.194124,
+            51.725975,
             69.0
           ],
           [
-            -1.194503,
-            51.726086,
+            -1.194371,
+            51.726083,
             69.0
           ],
           [
-            -1.194589,
-            51.726128,
+            -1.194459,
+            51.726088,
             69.0
           ],
           [
-            -1.194872,
-            51.726273,
+            -1.194471,
+            51.726093,
+            69.0
+          ],
+          [
+            -1.194531,
+            51.726119,
+            69.0
+          ],
+          [
+            -1.194572,
+            51.726136,
+            69.0
+          ],
+          [
+            -1.19487,
+            51.726274,
             69.25
           ],
           [
-            -1.19507,
-            51.726374,
+            -1.195062,
+            51.726378,
             69.0
           ],
           [
-            -1.195225,
-            51.726471,
+            -1.195209,
+            51.726475,
             69.25
           ],
           [
-            -1.195367,
-            51.726566,
+            -1.195365,
+            51.726568,
             69.5
           ],
           [
-            -1.195687,
-            51.726767,
+            -1.195403,
+            51.726594,
             69.5
           ],
           [
-            -1.195801,
-            51.726839,
-            69.5
-          ],
-          [
-            -1.195902,
-            51.726904,
+            -1.195437,
+            51.726653,
             69.75
           ],
           [
-            -1.195999,
-            51.726977,
+            -1.195647,
+            51.726787,
+            69.75
+          ],
+          [
+            -1.19597,
+            51.726992,
             70.0
-          ],
-          [
-            -1.196151,
-            51.727103,
-            69.75
           ],
           [
             -1.196216,
@@ -27587,18 +27881,18 @@
             73.25
           ],
           [
-            -1.212968,
-            51.734466,
+            -1.212973,
+            51.734454,
             73.0
           ],
           [
-            -1.213161,
-            51.73454,
-            72.75
+            -1.21317,
+            51.73453,
+            72.5
           ],
           [
-            -1.213199,
-            51.734554,
+            -1.213211,
+            51.734544,
             72.5
           ],
           [
